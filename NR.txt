@@ -1,0 +1,2905 @@
+Linux Filesystem Tree Layout
+=================================
+FHS  Filesystem Hierarchy Standard (FHS) 
+
+FHS Linux Standard Directory Tree (20) File (FHS) a Pinguin (linux) with same root than bin (Bote de basura)
+-----------------
+/	Primary directory of the entire filesystem hierarchy, The root partition must contain all essential files required to boot the system and then mount all other filesystems.
+/bin	Essential executable programs that must be available in single user mode
+/boot	Files needed to boot the system, such as the kernel (vmlinuz), initrd or initramfs images, and boot configuration files: config & system.map
+/dev	Device Nodes, used to interact with hardware and software devices
+/etc	System-wide/machine-local configuration files and startup scripts, there should be no executable binary programs.
+important sudfirectories /etc/skel /etc/systemd /etc/init.d and /etc/sysconfig (in RHEL)
+/home	User home directories, including personal settings, files, etc.
+/lib	Libraries required by executable binaries in /bin and /sbin
+Kernel modules are located under /lib/modules/<kernel-version-number>, PAM files are stored inlocations such as /lib64/security
+/lib64	64-bit libraries required by executable binaries in /bin and /sbin
+/media	Mount points for removable media such as CDs, DVDs, USB sticks, etc.
+/mnt	Temporarily mounted filesystems, also including: NFS, Samba, CIFS, AFS
+/opt	Optional application software packages
+/proc	Virtual pseudo-filesystem giving information about the system and processes running on it.including /proc/interrupts, /proc/meminfo, /proc/mounts, /proc/partitions, /proc/filesystems, /proc/sys/ 
+/run	Run-time variable data, containing information describing the system since it was booted.
+/sys	Virtual pseudo-filesystem giving information about the system and processes running on it. 
+/root	Home directory for the root user
+/sbin	Essential system binaries
+/srv	Site-specific data served up by the system. Seldom used.
+/tmp	Temporary files; on many distributions lost across a reboot and may be a ramdisk in memory.
+/usr	Multi-user applications, utilities and data; theoretically read-only.
+/var	Variable data that changes during system operation, Log files, Spool directories and files, Administrative data files, Transient and temporary files
+
+->Top Level Directory with PseudoFiles : proc, sys and dev*
+
+Sizes of the Default Linux Directories
++++++++++++++++++++++++++++++++
+du -sxhc --exclude=proc
+du -d 1 -xh ./  or du --max-depth=1 -xh ./ (size of direct directory files)
+ls -F
++++++++++++++++++++++++++++++++
+tilde ~: Alt gr + 4   or  Alt + 126
+
+User Environment
+=======================
+They can be listed in different formats with various commands: env, export, set, printenv
+Some Important Environment Variables: HOME, PATH, PS1 (commandline prompt), SHELL (user default shell), EDITOR
+You can set a new variable value with:
+$ VARIABLE=value
+$ export EDITOR=/usr/bin/nano
+$ echo $EDITOR
+You can add a new variable permanently:
+Edit ~/.bashrc and start a new shell or logout/login  (source ./bashrc)
+
+Variables are only available to the current shell:  
+In order for variables to be visible to child processes, export command
+
+History
+----------
+$ history
+The shell stores history in ~/.bash_history:
+
+Location of the history file: HISTFILE
+Maximum number of lines in the history file: HISTFILESIZE
+Maximum number of lines of history in the current session: HISTSIZE
+$ echo $HISTFILE
+/home/jbond/.bash_history
+$ echo $HISTFILESIZE
+$ echo $HISTSIZE
+
+Recalling, Editing Previous Commands
+----------
+!! (often pronounced as “bang-bang”) executes the previous command.
+CTRL-R is used to search through history. Hitting CTRL-R multiple times to scan backwards through previous commands. 
+$ CTRL-R <search word>
+
+$ history | head -5
+History substitution:
+To refer to the last argument in a line: !$
+To refer to the most recent command starting with !string
+
+Alias
+----------
+You can list all currently active aliases with this command:
+$ alias
+$ alias name=command
+$ alias rm='rm -i'
+$ unalias name
+
+
+USER ACCOUNT MANAGMENT
+======================
+Attributes of a User Account
+-----------
+Each user on the system has a corresponding line in the /etc/passwd file that describes 
+User name : User password as x
+User identification number (UID)
+Group identification number (GID)
+Comment or GECOS information : Home directory : Login shell
+
+From /etc/passwd:
+beav:x:1000:1000:Theodore Cleaver:/home/beav:/bin/bash
+
+Command:
+$ who  (users are currently logged in the system)
+$ whoami  (current user)
+$ id  (current user ID, group ID, and their numeric version)
+Output: uid=1000(user) gid=1000(user) groups=1000(user),999(qubes)
+
+Startup files (in etc folder)
+-------------
+When you login to Linux, /etc/profile is always read and evaluated. Next, the following files in this order:
+~/.bash_profile - login shells configuration
+~/.bash_login - login initialization
+~/.profile - overrides /etc/profile
+
+Every time you create a sub-shell, but aren’t logging in, only ~/.bashrc is read and evaluated.
+In reality, in most distributions, also ~/.bashrc is used for login shells.
+Thus the vast majority of your customizations should go into ~/.bashrc.
+
+Creating User Accounts with useradd
+-------------
+useradd allows for default operation:
+$ sudo useradd bjmoose.
+The defaults can easily be overruled by using options to useradd as in:
+$ sudo useradd -s /bin/csh -m -k /etc/skel -c "Bullwinkle J Moose" bmoose
+
+To check defaults
+cat /etc/default/useradd
+cat /etc/login/defs
+
+Modifying and Deleting User Accounts
+---------------
+The root user can delete user accounts with userdel:
+$ sudo userdel rjsquirrel
+All references to the user rjsquirrel will be erased from /etc/passwd, /etc/shadow, and /etc/group. But does not delete the home directory (usually /home/rjsquirrel), need -r
+usermod can be used to change characteristics of a user account such as group memberships, home directory, login name, password, default shell, user id, etc. Usage is pretty straightforward. Note that usermod will take care of any modifications to files in the /etc directory as necessary.
+
+$ sudo usermod -L bjmoose
+locks the account for bjmoose so they cannot login.
+Unlocking can be done with the -U option.
+
+Locked Accounts
+---------------
+Linux ships with some locked accounts which means they can run programs, but can never login
+For example /etc/passwd has entries like:
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+The nologin shell is return if a locked user tries to login to the system
+
+Locked accounts have no valid password:
+Usually represented by "!!" in /etc/shadow
+
+Another way to lock an account is to use chage to change the expiration date of an account:
+$ sudo chage -E 2001-09-11 rjsquirrel (any date in the past)
+
+The convention most Linux distributions have used is that any account with a UID less than 1000 is considered special and belongs to the system; 
+normal user accounts start at 1000. 
+The actual value is defined as UID_MIN and is defined in /etc/login.defs
+
+The default permissions of /etc/passwd are 644 (-rw-r--r--); anyone can read the file, so passwords are saved in
+/etc/shadow has permission settings of 400 (-r--------), which means that only root can access this file. 
+
+
+/etc/shadow Format
+-------------------
+/etc/shadow contains one record (one line) for each user, as in:
+daemon:*:16141:0:99999:7:::
+beav:$6$iCZyCnBJH9rmq7P.$RYNm10Jg3wrhAtUnahBZ/mTMg.RzQE6iBXyqaXHvxxbK\
+   TYqj.d9wpoQFuRp7fPEE3hMK3W2gcIYhiXa9MIA9w1:16316:0:99999:7:::
+
+Each record contains fields separated by colons ( : ):
+username: password: the hashed (sha512) value of the password
+lastchange, mindays: maxdays: last/min/maximum days after which password must be changed
+warn: days before password expires that the user is warned
+grace:expire:reserved
+
+Password Management
+-------------------
+Passwords can be changed with passwd.
+$ passwd ( current user)
+$ sudo passwd rjsquirrel
+
+Password Aging (chage)
+-------------------
+The utility that manages changing of password behaviour:
+chage [-m mindays] [-M maxdays] [-d lastday] [-I inactive] [-E expiredate] [-W warndays] user
+
+To force a user to change their password at their next login, you can run the following command:
+$ sudo chage -d 0 USERNAME
+
+Examples of chage:
+$ sudo chage -l beaver
+$ sudo chage -m 14 -M 30 wally
+$ sudo chage -E 2012-4-1 eddie
+
+The root Account
+--------------------
+sudo is safer to use than su
+sudo configuration is done in /etc/sudoers and /etc/sudoers.d.
+su (pronounced ess-you) creates a sub-shell environment that allows the user elevated privileges until they exit that shell.
+
+One can permit Secure Shell logins using ssh, which is configured with /etc/ssh/sshd_config, and PAM (Pluggable Authentication Modules), 
+through the pam_securetty.so module and the associated /etc/securetty file. Root login is permitted only from the devices listed in /etc/securetty.
+PAM can also be used to restrict which users are allowed to su to root. 
+
+SSH
+-------------------
+To sign onto a remote system, you can use the following command:
+$ ssh farflung.com
+
+To log in as a different user, you can use:
+$ ssh root@farflung.com
+$ ssh -l root farflung.com
+
+To copy files from one system to another, you can do the following:
+
+$ scp file.txt farflung.com:/tmp
+$ scp file.tex student@farflung.com/home/student
+$ scp -r some_dir farflung.com:/tmp/some_dir
+
+You can use the pssh (Parallel SSH) utility to execute a command on multiple systems in one fell stroke as in:
+$ pssh -viH machine1 machine2 machine3 do_something
+
+ssh Configuration Files
+---------------------
+One can configure SSH further to expedite its use, in particular to permit logging in without a password. 
+User-specific configuration files are created under every user’s home directory in the hidden .ssh directory:
+
+id_rsa: the user's private key
+id_rsa.pub: the user's public key
+authorized_keys: public keys that are permitted to log in
+known_hosts: hosts from which logins have been allowed in the past
+config: file for specifying various options
+ 
+The private key must never ever be shared with anyone. 
+The public key, however, should be given to any machine with which you want to permit password-less access.
+Note that authorized_keys contains public keys that are allowed to login as you on this machine. 
+$ cat authorized_keys
+
+known_hosts is gradually built up as ssh accesses occur.
+$ cat known_hosts
+
+SSH Configuration File Precedence
+--------------------
+The order the configuration files are processed is as follows:
+Command line options
+~/.ssh/config
+/etc/ssh/ssh_config
+
+SSH setup
+--------------------
+First a user has to generate their private and public encryption keys with ssh-keygen:
+$ ssh-keygen
+Copy key to other server
+$ ssh-copy-id -i /.ssh/id_ed25519 user@otherserver
+When lost pub key and whant to regenerate
+$ ssh-keygen -y -f ̃/.ssh/id_ed25519 > ̃/.ssh/id_ed25519.pub
+
+Remote Graphical Login
+--------------------
+You can login into remote machine with full graphical desktop. often VNC (Virtual Network Computing)
+Common implementation is tigervnc
+$ sudo [dnf|zypper|apt] install tigervnc*
+You can test with the following command:
+$ vncviewer localhost:2
+
+On a remote machine (e.g., some_machine):
+$ vncserver
+
+On a local machine:
+$ vncviewer -via server student@some_machine localhost:2
+From a remote machine it is just slightly different:
+$ vncviewer -via student@some_machine localhost:2
+
+You may have to play with numbers other than 2 (1, 3, 4, ...) depending on how your machine is configured. 
+If you get a rather strange message about having to authenticate and no passwords work, 
+you have to kill the colord daemon on the server machine:
+$ sudo systemctl stop colord
+
+Group Managment
+================
+Groups are defined in the /etc/group file, looks like:
+groupname:password:GID:user1,user2,...
+
+password is the password placeholder. Group passwords may be set, but only if /etc/gshadow exists.
+Values between 100 and GID_MIN (as defined in /etc/login.defs and usually the same as UID_MIN) are considered special.
+Values over GID_MIN are for UPG (User Private Groups).
+
+Group membership can be identified by running either of the following commands:
+$ groups (current user groups)
+$ groups [user1 user2 ...]
+$ id -Gn [user1 user2 ...]
+
+$ sudo groupadd -r -g 215 staff
+$ sudo groupmod -g 101 blah
+$ sudo groupdel newgroup
+$ sudo usermod -G student,group1,group2 student
+Non-destructive use should utilize the -a option, which will preserve pre-existing group memberships when adding new ones
+
+User Private Groups
+----------------
+Linux uses User Private Groups (UPG).
+
+As specified in /etc/profile, the umask is set to 002 for all users created with UPG. 
+Under this scheme, user files are thus created with permissions 664 (rw-rw-r--) 
+and directories with 775 (rwxrwxr-x). We will discuss umask later.
+
+$chgrp bosses somedir (gives group permission to the dir)
+$chmod a+x . (gives execution permission to)
+
+File permissions & Ownership
+===================
+$ ls -l a_file
+-rw-rw-r-- 1 coop aproject 1601 Mar 9 15:04 a_file
+
+After the first character (which indicates the type of the file object),
+there are nine more which indicate the access rights, arranged in three groups of three:
+owner: the user who owns the file (also called user)
+group: the group of users who have access
+other: the rest of the world (also called world).
+
+chmod
+----------------
+Changing file permissions is done with chmod.
+$ chmod uo+x,g-w a_file
+where u stands for user (owner), o stands for other (world), and g stands for group.
+
+Octal bitmaps usually look like 0755, while symbolic representations look like u+rwx, g+rwx, o+rx.
+$ chmod u=r,g=w,o=x afile
+$ chmod u+w,g-w,o+rw afile
+$ chmod ug=rwx,o-rw afil
+
+Octal Digits
+-----------------
+4 if the read permission is desired
+2 if the write permission is desired
+1 if execute permission is desired
+Thus, 7 means read/write/execute, 6 means read/write, and 5 means read/execute.
+
+chown and chgrp
+------------------
+Change file ownership
+$ sudo chown wally somefile
+
+Change group ownership with the chgrp command (only to groups you belong to):
+$ sudo chgrp cleavers somefile
+
+Change both at the same time with this command:
+$ sudo chown wally:cleavers somefile
+$ sudo chown -R wally:wally subdir (recursive)
+
+umask
+------------------
+The default permissions when creating a file are read/write for owner, group and world (0666), 
+and for a directory it is read/write/execute for everyone (0777).
+But you can change it with umask
+$ umask (usual value is 0002)
+$ umask 0022
+
+This value is combined with the file creation permissions to get the actual result; i.e.,
+0666 & ~002 = 0664; i.e., rw-rw-r--
+
+The default umask is set in /etc/profile. The root's umask is 022.
+
+$umask -S
+$umask u=r, g=w, o=rw
+
+Filesystem ACLs
+--------------
+POSIX ACLs (Access Control Lists) extend the simpler user, group, and world system
+
+Use getfacl/setfacl to get/set ACLs. For example:
+$ getfacl /home/stephane/file1
+$ setfacl -m u:isabelle:rx /home/stephane/file1
+To remove an ACL, run this command:
+$ setfacl -x u:isabelle /home/stephane/file1
+To set the default on a directory, type:
+$ setfacl -m d:u:isabelle:rx somedir
+
+
+7. PACKAGE MANAGEMENT SYSTEMS
+=======================
+
+Package Types
+--------------------
+Binary, Source, Architrecture independent & Meta Packages
+Binary packages are the ones that system administrators have to deal with most of the time.
+
+It's possible to rebuild binary packages from their source packages, for example on RPM-based systems:
+# rpmbuild --rebuild -rb p7zip-16.02-16.el8.src.rpm
+
+The Linux Kernel and git
+---------------------
+Originated from BitKeeper when became unavailable for Linux kernel development.
+Original author was Linus Torvalds. 
+
+How git Works
+------------------- 
+It has two important data structures: an object database and a directory cache.
+The object database contains objects of three varieties:
+-Blobs: Chunks of binary data containing file contents
+-Trees: Sets of blobs including file names a-nd attributes, giving the directory structure
+-Commits: Changesets describing tree snapshots.
+The directory cache captures the state of the directory tree.
+
+DPKG
+===================
+Package files have a .deb suffix and the DPKG database resides in the /var/lib/dpkg directory.
+
+Package File Names and Source
+-------------------
+The standard naming format for a binary package is:
+<name>_<version>-<revision_number>_<architecture>.deb
+As in : logrotate_3.14.0-4_amd64.deb   (in debian the 64-bit x86 platform is called amd64 rather than x86_64)
+
+A source package consists of at least three files:
+-An upstream tarball, ending with .tar.gz
+-A description file, ending with .dsc
+-A second tarball that contains any patches ending with .debian.tar.gz or .diff.gz, depending on distribution.
+
+$apt-get source logrotate
+
+DPKG Queries
+----------------------
+For example, to see what version of a particular package is installed, you can run the following command:
+$ dpkg -s dpkg | grep -i version
+
+Without additional arguments, dpkg -V will verify all packages on the system:
+$ sudo dpkg -V
+List all packages installed:
+$ dpkg -l
+List files installed in the wget package:
+$ dpkg -L wget
+Show information about an installed package:
+$ dpkg -s wget
+Show information about a package file:
+$ dpkg -I webfs_1.21+ds1-8_amd64.deb
+List files in a package file: *
+$ dpkg -c webfs_1.21+ds1-8_amd64.deb
+Show what package owns the /etc/init/networking.conf file:
+$ dpkg -S /etc/init/networking.conf
+Verify the installed package's integrity:
+$ dpkg -V package
+
+
+Installing/Upgrading/Uninstalling Packages with dpkg
+-----------------
+Install or upgrade the foobar package:
+$ sudo dpkg -i foobar.deb
+Remove all of an installed package except for its configuration files:
+$ sudo dpkg -r package
+remove all of an installed package, including its configuration files.
+$ sudo dpkg -P package
+Note that -P stands for purge.
+
+$ dpkg --get-selections "*apache2*" to get only installed packages
+
+APT
+=================
+
+Queries & commands
+-----------------
+Queries are done using the apt-cache or apt-file utilities. 
+You may have to install apt-file first
+$ sudo apt-get install apt-file
+$ sudo apt-file update
+
+To search the repository for a package named apache2:
+$ apt-cache search apache2
+To display basic information about the apache2 package:
+$ apt-cache show apache2
+To display detailed information about the apache2 package:
+$ apt-cache showpkg apache2
+List all dependent packages for apache2:
+$ apt-cache depends apache2
+$ apt-cache pkgnames "apache2" to list all packages installed
+
+Search the repository for a file named apache2.conf:
+$ apt-file search apache2.conf
+List all files in the apache2 package:
+$ apt-file list apache2
+
+Used to install new packages or update a package: 
+$ sudo apt install [package]
+Used to remove a package. This does not remove the configuration files: 
+$ sudo apt remove [package]
+Used to remove a package and its configuration files from a system: 
+$ sudo apt --purge remove [package]
+
+Used to synchronize the package index files with their sources. 
+The indexes of available packages are fetched from /etc/apt/sources.list:
+$ sudo apt update
+
+upgrade is used to apply all available updates to packages already installed; 
+dist-upgrade will not update to a whole new distribution version as is commonly misunderstood:
+$ sudo apt upgrade
+$ sudo apt dist-upgrade
+
+Note that you must update before you upgrade, unlike with dnf or zypper, which can be confusing.
+Similarly, unlike with dnf or zypper, one never updates/upgrades individual packages
+
+This command gets rid of any packages not needed anymore, such as older Linux kernel versions:
+$ sudo apt autoremove
+And this one cleans out cache files and any archived package files that have been installed:
+$ sudo apt clean
+
+APT provides the ability to manage groups of packages, through the use of metapackages.
+These can be thought of as virtual packages, installed and removed as a group:
+$ apt-cache search metapackage
+
+10 RPM
+=================
+The Red Hat Package Manager (RPM) 
+
+Package File Names
+----------------------
+The standard naming format for a binary RPM package is:
+<name>-<version>-<release>.<distro>.<architecture>.rpm
+sed-4.5-2.e18.x86_64.rpm
+
+The standard naming format for a source RPM package is:
+<name>-<version>-<release>.<distro>.src.rpm
+sed-4.5-2.e18.src.rpm
+
+RPM Database and Helper Programs
+--------------------
+/var/lib/rpm is the default system directory which holds RPM database files in the form of Berkeley DB hash files. 
+updates should be done only through the use of the rpm program.
+An alternative database directory can be specified with the --dbpath option:
+
+Helper programs and scripts used by RPM reside in the /usr/lib/rpm directory.
+$ ls /usr/lib/rpm | wc -l
+
+You can use the --rebuilddb option to rebuild the database indices (like repair)
+$ sudo rpm --rebuilddb
+
+You can create an rpmrc file to specify default settings for rpm. By default, rpm looks for:
+/usr/lib/rpm/rpmrc
+/etc/rpmrcs
+~/.rpmrc
+in the above order. An alternative rpmrc file can be specified using the --rcfile option.
+
+Queries
+---------------------
+All rpm inquiries include the -q option, which can be combined with numerous other query options:
+-f: allows you to determine which package a file came from
+-l: lists the contents of a specific package
+-a: all the packages installed on the system
+-i: information about the package
+-p: run the query against a package file instead of the package database
+
+Which version of a package is installed?	$ rpm -q bash
+Which package did this file come from?	$ rpm -qf /bin/bash
+What files were installed by this package?	$ rpm -ql bash
+Show information about this package.	$ rpm -qi bash
+Show information about this package from the package file, not the package database.	$ rpm -qip foo-1.0.0-1.noarch.rpm
+List all installed packages on this system.	$ rpm -qa
+
+The --requires option will return a list of prerequisites for a package, 
+while the --whatprovides option will show what installed package provides a particular requisite package.
+$ rpm -q --requires bash
+$ rpm -qp --requires foo-1.0.0-1.noarch.rpm
+$ rpm -q --whatprovides libc.so.6
+
+Verifying Packages
+--------------------
+The -V option to rpm allows you to verify whether the files from a particular package are consistent with the system’s RPM database.
+No output when everything is OK.
+$ rpm -V bash
+
+Installing Packages
+---------------------
+To install a package, the rpm -i command is used, as in:
+$ sudo rpm -ivh bash-4.4.19-12.el8_0.x86_64
+where the -i is for install, -v is for verbose, and -h means print hash marks to show progress.
+
+Uninstalling Packages
+-----------------------
+The -e option causes rpm to uninstall (erase) a package. 
+A successful uninstall produces no output.
+$ sudo rpm -e system-config-lvm
+
+You can use the --test option along with -e to determine whether the uninstall would succeed or fail, without actually doing the uninstall. 
+If the operation would be successful, rpm prints no output. 
+Add the -vv option to get more information.
+$ sudo rpm --test -e xz
+
+Updating Packages
+----------------------------
+Updating replaces the original package (if installed):
+$ rpm -Uvh bash-4.4.19-12.el8.x86_64.rpm
+You can give a list of package names, not just one.
+
+When upgrading, the already installed package is removed after the newer version is installed. 
+The one exception is the configuration files from the original installation, which are kept with a .rpmsave extension.
+
+If you use the -U option and the package is not already installed, it is simply installed and there is no error.
+The -i option is not designed for upgrades; attempting to install a new RPM package over an older one fails with error messages, 
+However, different versions of the same package may be installed
+
+If you want to downgrade with rpm -U (that is, to replace the current version with an earlier version), 
+you must add the --oldpackage option to the command line.
+ 
+Freshening Packages
+------------------------
+
+$ sudo rpm -Fvh *.rpm
+will attempt to freshen all the packages in the current directory. The way this works is:
+The -F option is useful when you have downloaded several new patches and want to upgrade the packages that are already installed,
+but not install any new ones.
+
+Upgrading the Linux Kernel
+-------------------------
+When you install a new kernel on your system, it requires a reboot (one of the few updates that do) to take effect. 
+You should not do an upgrade (-U) of a kernel: an upgrade would remove the old currently running kernel.
+
+However, if you install (-i), both kernels coexist and you can choose to boot into either one; i.e., you can revert back to the old one if need be.
+
+To install a new kernel on a Red Hat-based system, run the following command:
+$ sudo rpm -ivh kernel-{version}.{arch}.rpm
+
+When you do this, the GRUB configuration file will automatically be updated to include the new version; 
+it will be the default choice at boot, unless you reconfigure the system to do something else.
+
+Once the new kernel version has been tested, you may remove the old version if you wish, on Red Hat-based systems you can do:
+$ sudo dnf remove --oldinstallonly
+
+Using rpm2archive and rpm2cpio
+------------------------
+rpm2archive is used to convert RPM package files to tar archives:
+$ rpm2archive bash-XXXX.rpm
+to create the bash-XXXX.rpm.tgz file.
+
+Extract in one step by running the following command:
+cat bash-XXXX.rpm | rpm2archive - | tar -xvz
+
+It is more direct and efficient than the older rpm2cpio utility, 
+Convert an RPM package file to a cpio archive:
+$ rpm2cpio bash-XXXX.rpm > bash.cpio
+
+Extract one or more files:
+$ rpm2cpio bash-XXXX.rpm | cpio -ivd bin/bash
+$ rpm2cpio logrotate-XXXX.rpm | cpio --extract --make-directories
+
+List files in a package;
+$ rpm -qilp bash-XXXX.rpm
+
+11 DNF & YUM
+==========================
+The configuration files for repositories are located in the /etc/yum.repos.d directory and have a .repo extension.
+
+A very simple repo file might look like:
+[repo-name]
+    name=Description of the repository
+    baseurl=ht‌tp://somesystem.com/path/to/repo
+    enabled=1
+    gpgcheck=1
+
+dnf caches information and databases to speed up performance. 
+To remove some or all cached information you can run the following command:
+$ dnf clean [ packages | metadata | expire-cache | rpmdb | plugins | all ]
+
+You can also toggle use of a particular repo on or off by changing the value of enabled, 
+or using the --disablerepo somerepo and --enablerepo somerepo options.
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+Queries
+------------------------------------
+To search for a package with keyword in it, run:
+$ dnf search keyword
+
+To display information about a package, run:
+$ dnf info package-name
+
+To list packages installed, available, or updates, run:
+$ dnf list [installed | updates | available ]
+
+To show information about package groups installed, available and updates, run:
+$ dnf grouplist
+
+To show information about a package group:
+$ dnf groupinfo packagegroup
+
+To show the owner of the package for file:
+$ dnf provides /path/to/file
+
+The dependencies for the package.
+$sudo dnf deplist bash
+
+Installing/Removing/Upgrading Packages
+-----------------------------------
+$ dnf list [installed | updates | available ]
+Install a package from a repository; also resolve and install dependencies:
+$ sudo dnf install package
+
+Install a package from a local rpm file:
+$ sudo dnf localinstall package-file
+
+Install a specific software group from a repository; 
+also resolve and install dependencies for each package in the group:
+$ sudo dnf groupinstall 'group-name'
+
+Remove a package from the system:
+$ sudo dnf remove package
+
+Update a package from a repository (if no package is listed, update all packages):
+$ sudo dnf update [package]
+
+Check if any updates in the system
+$ sudo dnf update
+$ sudo dnf check-update
+$ sudo dnf list updates
+Only the firt form will try to do the updates
+
+During installation (or update), 
+if a package has a configuration file which is updated,
+it will rename the old configuration file with a .rpmsave extension. 
+If the old configuration file will still work with the new software, 
+it will name the new configuration file with a .rpmnew extension. 
+
+Additional dnf Commands
+------------------------
+Lists additional dnf plugins:
+$ sudo dnf list "dnf-plugin*"
+$ sudo dnf list installed "kernel*"
+
+Shows a list of enabled repositories:
+$ sudo dnf repolist
+
+Provides an interactive shell in which to run multiple dnf commands (the second form executes the commands in file.txt):
+$ sudo dnf shell
+$ sudo dnf shell file.txt
+
+Downloads the packages for you (it stores them in the /var/cache/dnf directory):
+$ sudo dnf install --downloadonly package
+
+Views the history of dnf commands on the system, and with the correction options, even undoes or redoes previous commands:
+$ sudo dnf history
+
+Cleans up locally stored files and metadata under /var/cache/dnf. This saves space and does house cleaning of obsolete data:
+$ sudo dnf clean [packages|metadata|expire-cache|rpmdb|plugins|all]
+
+
+12: Zipper
+==========================
+
+Queries
+-------------------
+Shows a list of available updates:
+$ zypper list-updates
+
+Lists available repositories:
+$ zypper repos
+
+Searches repositories for string:
+$ zypper search -i kernel
+$ zypper search kernel
+
+Lists information about a package:
+$ zypper info firefox
+
+Searches repositories to show what packages provide a file:
+$ zypper search --provides /usr/bin/firefox
+
+Installing/Removing/Upgrading Packages with zypper
+---------------------------------
+Installs or updates a package on the system:
+$ sudo zypper install firefox
+$ sudo zypper --non-interactive install firefox
+
+Updates all packages on system from a repository:
+$ sudo zypper update
+$ sudo zypper update <package>
+$ sudo zypper --non-interactive update
+
+Removes a package from the system:
+$ sudo zypper remove firefox
+
+Additional zypper Commands
+------------------
+Sometimes, a number of zypper commands must be run in a sequence. 
+To avoid re-reading all the databases for each command, you can run zypper in shell mode::
+$ sudo zypper shell
+
+To add a new repository run this command:
+$ sudo zypper addrepo URI alias
+
+To remove a repository from the list, do:
+$ sudo zypper removerepo alias
+
+To clean up and save space in the /var/cache/zypp directory, type the following command:
+$ sudo zypper clean [--all]
+
+13 GIT
+=====================
+What makes git different is that on a technical level, there is no such thing as central authoritative repository;
+the underlying framework is actually peer-to-peer in nature
+ 
+The git help subcommand provides detailed man pages for each git invocation.
+$ git help [subcommand]
+
+Other essential git commands are:
+$ git clone
+$ git branch
+$ git status
+$ git add
+$ git commit
+$ git merge
+$ git pull
+$ git push
+
+Minimal Global Configuration
+---------------------------------
+$ git config --global user.name "Gladys West"
+$ git config --global user.email "gwest@example.com"
+$ git config --global init.defaultBranch main
+
+These settings will get written to your ˜/.gitconfig. 
+The ˜/.gitconfig file can contain quite a lot more.
+
+$ git init
+$ git add motd
+$ git status -sb -uall
+-s display short format
+-b show branch information even in short format
+-uall show untracked files including in untracked directories
+$ git diff
+$ git commit -m 'message of the day'
+$ git commit -all --amend
+without creating another commit:
+--all automatically stage modified and deleted (not new) files
+--amend replace the last commit with a new commit
+
+Beautify log
+$git log --pretty=oneline -n 20 --graph --abbrev-commit
+
+For large projects, if you know you just want to look at the very latest (or another) commit without all of the history, 
+$ git clone --depth 1 -b master \ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git linux/
+-b point to the named branch when cloning
+-depth create a shallow clone with a specified number of commits
+
+Branch Analogy
+---------------------
+To create a new branch from the current branch as the source for the copy:
+$ git checkout -b <name>
+To create a new branch with the upstream branch as the source for the copy:
+$ git checkout -b <name> remotes/origin/main
+$ git checkout -b local/latest debian/latest
+
+Fork? Clone?
+-----------------
+Don’t trust a git clone as a backup if it is on the same filesystem.  
+To make a local on the same filesystem without using hard links:
+$ git clone . --no-hardlinks /tmp/meow/
+
+Tags
+-----------------------
+Most projects use annotated tags or signed tags, which require their own commit message. 
+$ git tag -a, –annotated <tag name> make an unsigned annotated tag object (before push)
+$ git tag -a v1.0 -m 'release intial version'
+
+14) Processes
+=========================
+Every process has a pid (Process ID), a ppid (Parent Process ID), and a pgid (Process Group ID).
+Only the kernel has the right to preempt a process; they cannot do it to each other.
+
+For historical reasons, the largest PID has been limited to a 16-bit number, or 32768. 
+It is possible to alter this value by changing /proc/sys/kernel/pid_max.
+
+All processes have certain attributes:
+-The program being executed, Context (state), Permissions, Associated resources
+
+Setuid
+----------------
+Programs marked with 's', run with the user-id of the user who owns the program, where a non-setuid program runs with the permissions of the user who starts it. 
+setuid programs owned by root can be a security problem.
+The passwd command is an example of a setuid program
+
+Ulimit
+------------------
+ulimit is a built-in bash command that displays or resets process resource limits. 
+ulimit with the -a argument gives us current ulimit
+
+You can set any particular limit by running the following command:
+$ ulimit [options] [limit]
+$ ulimit -n 1600
+which would increase the maximum number of file descriptors to 1600.
+
+Note that the changes only affect the current shell. 
+To make changes to all, you need to modify /etc/security/limits.conf, and then reboot.
+
+Hard and Soft Limits
+-------------------
+Hard: The maximum value, set only by the root user, that a user can raise the resource limit to.
+$ ulimit -H -n
+Soft: The current limiting value, which a user can modify, but cannot exceed the hard limit.
+$ ulimit -S -n
+
+Creating Processes
+----------------
+An average Linux system is always creating new processes. 
+This is often called forking; the original parent process keeps running, while the new child process starts.
+Often, rather than just a fork, one follows it with an exec, where the parent process terminates, 
+And the child process inherits the process ID of the parent. 
+
+Some shell commands (such as echo and kill) are built into the shell itself, and do not involve loading of program files. 
+For these commands, neither a fork nor an exec is issued for the execution.
+
+Background and Foreground Processes
+------------------
+Foreground jobs (default)run from the shell, delaying access to the shell until the job has finished
+
+Adding an ampersand (&) after a command will run the command in the background:
+$ sudo updatedb &
+allowing the background process to execute in parallel.
+
+CTRL-Z suspends a foreground process. bg makes it run in the background. fg puts it in the foreground. CTRL-C terminates a foreground process.
+$ bg
+$ fg
+
+Managing Jobs
+-------------------
+The jobs command shows background processes in the current terminal. 
+It shows the job ID, the state and the command name:
+$ jobs
+$ jobs -l
+will provide the PID for the job.
+
+Using at to Start in the Future
+------------------
+at executes any non-interactive command at a specified time. 
+You then use atq to see the job information, or delete queued jobs.
+
+$ at now + 1 minute 
+at > date > /tmp/datestamp
+CTRL-D
+$ atq  (find out queues jobs)
+Another way with a predefined sh file:
+$ at now + 1 minute -f scripttoexecute.sh
+
+Cron
+------------------
+cron can be managed in different ways:
+
+crontab lets users specify jobs
+/etc/cron.d/ can be extended with formatted job files
+/etc/cron.{hourly,daily,weekly,monthly} can contain any system script
+$ ls -l /etc/cron.d
+$ ls -l /etc/cron.daily
+
+Create a file named mycrontab with the following content:0 10 * * * /tmp/myjob.sh
+and then create /tmp/myjob.sh (wht you wnat to be executed)
+and make it executable:$ chmod +x /tmp/myjob.sh
+
+Put it in the crontab system with:
+$ crontab mycrontab 
+verify it was loaded with:
+$ crontab -l
+$ sudo ls -l /var/spool/cron/student
+you can remove it with:$ crontab -r
+
+Anacron
+-------------------------
+With crontab if the machine was powered off, scheduled jobs would not run.
+anacron has replaced cron on modern systems. The key config file /etc/anacrontab:
+
+Sample:
+# /etc/anacrontab: configuration file for anacron 
+SHELL=/bin/sh
+....
+START_HOURS_RANGE=3-22 
+#period in days delay in minutes job-identifier command 
+1         5   cron.daily     nice run-parts  /etc/cron.daily
+7        25   cron.weekly    nice run-parts  /etc/cron.weekly
+
+Two Execution Modes
+--------------------
+User Mode
+Except when executing a system call, processes execute in user mode, where they have lesser privileges than in the kernel mode.
+
+System (Kernel) Mode
+In kernel (system) mode, the CPU has full access to all hardware on the system.
+If an application needs access to these resources, it must issue a system call, which causes a context switch from user mode to kernel mode.
+
+Daemons
+------------------
+A daemon process is a background process whose sole purpose is to provide some specific service to users of the system. 
+-Daemon names often (but not always) end with d, e.g. httpd and systemd-udevd
+-Daemons generally have no controlling terminal and no standard input/output devices
+
+Using nice to Set Priorities
+---------------
+Process execution priority can be controlled through the nice and renice commands. 
+-Higher nice values lower the priority 
+-Lower nice values raise the priority 
+
+Nice value can range from -20 (lowest nice, highest priority) to +19 (highest nice, lowest priority). 
+Note that only the superuser can lower a nice value but any user can raise their process’ nice value. 
+However, it is possible to give normal users the ability to decrease their niceness within a predetermined range, 
+by editing the following file: /etc/security/limits.conf.
+By default, a process has a nice value of 0 which is inherited from the shell. 
+
+$ nice -n 19 myprog
+runs myprog with the lowest priority, a nice value of 19. 
+$ nice -n -20 myprog
+runs myprog with the highest priority, a nice value of -20
+
+Modifying the Nice Value
+-----------------
+renice is used to raise or lower the nice value of an already running process
+It basically lets you change the nice value on the fly.
+
+Raise the nice value of pid 20003 to 5 with this command:
+$ renice +5 -p 20003
+$ renice +3 13848
+
+Others---------
+Ascertain how long your system has been up, and also display its load average.
+$ uptime or $w
+$ top | head
+
+15 Process Monitoring
+=========================
+
+Process Monitoring Tools
+----------------------
+top	Process activity, dynamically updated
+uptime	How long the system is running and the average load
+ps	Detailed information about processes
+pstree	A tree of processes and their connections
+mpstat	Multiple processor usage
+iostat	CPU utilization and I/O statistics
+sar	Display and collect information about system activity
+numastat	Information about NUMA (Non-Uniform Memory Architecture)
+strace	Information about all system calls a process make
+
+Viewing Process States with ps
+-----------------
+Some common choices of options (commands) are:
+$ ps aux
+$ ps -elf
+$ ps -eL
+$ ps -C "bash"
+
+what ps accepts fall into three categories:
+UNIX options, which must be preceded by -, and which may be grouped.
+BSD options, which must not be preceded by -, and which may be grouped.
+GNU long options, each of which must be preceded by --.
+
+Customizing the ps Output
+-----------
+Using the -o option, followed by a comma-separated list of field identifiers, allows the user to print out a selected list of ps fields:
+pid: Process ID
+uid: User ID of process owner
+cmd: Command with all arguments
+cputime: Cumulative CPU time
+pmem: Ratio of the process's resident set size to the physical memory on the machine, expressed as a percentage
+
+$ ps -o pid,pri,ni,cmd
+a specifi process -C processname
+$ ps -C <processname> -o pid,cmd,stat
+$ ps man for other options
+
+Using pstree
+-----------------
+pstree gives a visual description of the process ancestry and multi-threaded applications.
+$ pstree -aAp 2408
+Use -p to show process IDs, use -H [pid] to highlight [pid] and its ancestors.
+$ pstree -aAps 31478
+
+Another way to see that is by running the following command:
+$ ls -l /proc/18036/task
+
+
+16 Memory Monitoring
+=======================
+
+UTILITY	PURPOSE	PACKAGE
+free	Brief summary of memory usage	procps
+vmstat	Detailed virtual memory statistics and block I/O, dynamically updated	procps
+pmap	Process memory map	procps
+
+$free -m
+
+/proc/meminfo
+--------------------
+The pseudofile /proc/meminfo contains a wealth of information about how memory is being used.
+$ cat /proc/meminfo
+
+/proc/sys/vm
+------------------
+The /proc/sys/vm directory contains many tunable knobs to control the Virtual Memory system.
+$ ls /proc/sys/vm 
+Values can be changed either by directly writing to the entry, or using the sysctl utility.
+
+Controlling flushing parameters; i.e., how many pages are allowed to be dirty and how often they are flushed out to disk
+Controlling swap behavior; i.e., how much pages that reflect file contents are allowed to remain in memory, as opposed to those swapped out as they have no other backing store
+Controlling how much memory overcommission is allowed, since many programs never need the full amount of memory they request
+
+vmstat
+--------------------
+vmstat is a multi-purpose tool that displays information about memory, paging, I/O, processor activity and processes. 
+$ vmstat [options] [delay] [count]
+
+If delay is given in seconds, the report is repeated at that interval count times;
+if count is not given, vmstat will keep reporting statistics forever, until it is killed by a signal, such as Ctrl-C.
+
+The first line shows averages since the last reboot, 
+while succeeding lines show activity during the specified interval.
+
+$ vmstat 2 4
+If the option -S m is given, memory statistics will be in MB instead of KB.
+With the -a option, vmstat displays information about active and inactive memory, 
+where active memory pages are those which have been recently used; 
+they may be clean (disk contents are up to date) or dirty (need to be flushed to disk eventually). 
+
+By contrast, inactive memory pages have not been recently used, more likely to be clean and are released sooner under memory pressure.
+$ vmstat -a 2 4
+
+If you just want to get some quick statistics on only one partition, use the -p option:
+$ vmstat -p /dev/sdb1 2 4 
+
+swap
+-----------
+In most situations, the recommended swap size is the total RAM on the system. 
+You can see what your system is currently using for swap areas by looking at the /proc/swaps file and report on current usage with free.
+$ cat /proc/swaps
+
+The commands involving swap are:
+mkswap: format swap partitions or files
+swapon: activate swap partitions or files
+swapoff: deactivate swap partitions or files
+
+At any given time, most memory is in use for caching file contents to prevent actually going to the disk any more than necessary,
+Such pages of memory are never swapped out as the backing store is the files themselves, 
+instead, dirty pages (memory containing updated file contents that no longer reflect the stored data) are flushed out to disk.
+
+OOM Killer
+-------------------
+Linux, permits the system to overcommit memory, so that it can grant memory requests that exceed the size of RAM plus swap.
+The simplest way to deal with memory pressure would be to permit memory allocations to succeed as long as free memory is available and then fail when all memory is exhausted.
+The second simplest way is to use swap space on disk to push some of the resident memory out of core
+
+Thus, the kernel permits overcommission of memory, but only for pages dedicated to user processes; 
+pages used within the kernel are not swappable and are always allocated at request time.
+
+
+OOM Killer Algorithms
+-----------------------
+One can modify and even turn off overcommission by setting the value of /proc/sys/vm/overcommit_memory:
+0: (default) permit overcommission, but refuse obvious overcommits, and give root users somewhat more memory allocation than normal users.
+1: Al memory requests are allowed to overcommit.
+2: Turn off overcommission. Memory requests will fail when the total memory commit reaches the size of the swap space plus a configurable percentage (50 by default) of RAM.
+   This factor is modified changing /proc/sys/vm/overcommit_ ratio.
+
+Process selection depends on a badness value, which can be read from /proc/[pid]/oom_score for each process.
+
+Create swap file
+---------------------
+$ dd if=/dev/zero of=swpfile bs=1M count=1024 (add  a new partition)
+$ mkswap swpfile
+enabled it:
+$ sudo swapon swpfile
+verify
+$ cat /proc/swaps
+
+Invoking OOM Killer
+--------------------
+$ sudo /sbin/swapoff -a (deactivate all swapp)
+Then call a program that consume a lot of memory, and check kernel log:
+$ dmesg -w (read kernel messages)
+
+17. I/O Monitoring and Tuning
+=========================
+iostat
+--------------
+iostat is the basic workhorse utility for monitoring I/O device activity on the system.
+It can generate reports with a lot of information, with the precise content controlled by options. 
+$ iostat [OPTIONS] [devices] [interval] [count]
+
+After a brief summary of CPU utilization, I/O statistics are given: 
+tps (I/O transactions per second; logical requests can be merged into one actual request),
+blocks read and written per unit time, where the blocks are generally sectors of 512 bytes; and the total blocks read and written.
+
+Information is broken out by disk partition (and if LVM is being used also by dm, or device mapper, logical partitions).
+
+A somewhat different display is generated by giving the -k option, which shows results in KB instead of blocks or -m to get results in MB.
+
+A much more detailed report can be obtained by using the -x option (for extended), as in the following command:
+$ iostat -xk
+
+iotop
+-------------
+Another very useful utility is iotop, which must be run as root. It displays a table of current I/O usage and updates periodically, like top. 
+In the PRIO column, be stands for best effort and rt stands for real time.
+$ sudo iotop -o
+
+18. Containers
+=======================
+Some common Docker commands:
+docker search, docker pull, docker build, create, docker run
+$ docker search alpine
+$ docker container create -i -t --name mycontainer alpine
+$ docker container start --attach -i mycontainer
+$ docker build -t takacsmark/alpine-smarter:1.0 .
+$ docker build -f httpie.Dockerfile -t httpie:latest .
+
+Extending with docker compose
+------------------------
+docker compose allows you to specify runtime as well as build time configuration details for a Docker container (or containers)
+using a YAML docker-compose.yml file.
+Inside one configuration file, it is possible to specify volumes, ports, and other Docker startup information for multiple containers acting a a single application.
+
+Starting this application is done with the following command:
+$ docker compose up -d
+
+Shutting down can be done with:
+$ docker compose down
+
+docker compose generally uses the .yml extension for YAML files instead of .yaml. Here’s a simple example
+
+version: "3" 
+services:
+  app:
+    container_name: uptime-kuma
+    hostname: uptime-kuma
+    image: louislam/uptime-kuma
+    restart: always
+    ports:
+      - 3001:3001
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    volumes:
+      - ${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/uptimekuma:/app/data
+	  
+
+19: Linux Filesystems and the VFS
+========================
+Filesystem Basics
+------------------------
+Multiple filesystems may be (and usually are) merged together into a single tree structure.
+Linux uses a virtual filesystem layer (VFS) to communicate with the filesystem software.
+
+Local filesystems generally reside within a disk partition which can be a physical partition on a disk, 
+or a logical partition controlled by a Logical Volume Manager (LVM). 
+Filesystems can also be of a network nature.
+
+Inodes
+-----------------------
+All data about a file is contained within its inode. 
+Because of this, all I/O activity concerning a file usually also involves the file’s inode.
+For each file in a directory, there exists both a filename and an inode number.
+Inodes describe and store information about a file, including:
+-Permissions​
+-User and group ownership​
+-Size​
+-Timestamps (nanosecond)
+-- ​Access time - The last time the file was accessed for any purpose
+-- Modification time - The last time the file's contents were modified
+-- Change time - The last time the file's inode was changed, by a change in permissions, ownership, filename, hard links, etc.
+ 
+Filenames are not stored in the inode; they are stored in the directory.
+
+Hard and Soft Links
+--------------------
+A directory file is a particular type of file that is used to associate file names and inodes. 
+There are two ways to associate (or link) a file name with an inode:
+
+-Hard links point to an inode.​ They are made by using ln without an option. 
+All hard linked files have to be on the same filesystem. 
+Two or more files can point to the same inode (hard link). 
+Therefore a file can be known by multiple names, each of which has its own place in the directory structure. 
+However, a file have only one inode no matter which name is being used.
+
+-Soft (or symbolic) links point to a file name which has an associated inode. 
+Made by using ln -s option. Soft linked files may be on different filesystems. 
+If the target does not yet exist or is not yet mounted, it can be dangling.
+
+
+Virtual Filesystem (VFS)
+-------------------------
+Linux implements a Virtual File System (VFS).
+When an application needs to access a file, it interacts with the VFS abstraction layer, 
+which then translates into specific code relevant to the particular actual filesystem.
+This permits Linux to work with more filesystem varieties than any other operating system. 
+ 
+Available Filesystems
+---------------------------
+Most filesystems have full read/write access, while a few have read only access. 
+Native (kernel) filesystems tend to have full read/write access, while those from other operating systems or specialized ones may have only read access or experimental write access. 
+ 
+You can see a list of the filesystem types currently registered and understood by the kernel by:
+$ cat /proc/filesystems
+The ones with nodev are special filesystems which do not reside on storage. 
+
+Linux supports many filesystem varieties, most with full read and write access, including:
+-ext4: Linux native filesystem (and earlier ext2 and ext3)
+-XFS: A high-performance filesystem originally created by SGI
+-JFS: A high-performance filesystem originally created by IBM
+-Windows-natives: FAT12, FAT16, FAT32, VFAT, NTFS
+-Pseudo-filesystems resident only in memory, including proc, sysfs, devfs, debugfs
+-Network filesystems such as NFS, coda, afs
+Linux supports many types of filesystems, and more are constantly being added. These may be: 
+Native filesystems designed directly for Linux, such as ext4
+Filesystems brought over from other operating systems, such as xfs and ntfs
+Special filesystems which are not real filesystems, but use the infrastructure to accomplish particular purposes, such as debugfs
+
+Journaling Filesystems
+----------------------
+Journaling filesystems recover from system crashes or ungraceful shutdowns with little or no corruption, and do so very rapidly. 
+In a journaling filesystem, operations are grouped into transactions. 
+A transaction must be completed without error, atomically; otherwise, the filesystem is not changed. 
+A log file is maintained of transactions. When an error occurs, usually only the last transaction needs to be examined.
+
+Journalling Filesystems
+-ext3 was an extension of the earlier non-journalling ext2 filesystem.
+-ext4 is a vastly enhanced outgrowth of ext3. Features include extents, 48-bit block numbers, and up to 16 TB size. Most Linux distributions have used ext4 as the default filesystem for quite a few years.
+-reiserfs was the first journalling implementation used in Linux, but lost its leadership and further development was abandoned.
+-JFS was originally a product of IBM and was ported from IBM’s AIX operating system.
+-XFS was originally a product of SGI and was ported from SGI’s IRIX operating systems. RHEL 7 adopted XFS as its default filesystem.
+-btrfs is the newest of the journalling filesystems and is still under rapid development. It is the default for SUSE and openSUSE systems.
+
+Special Filesystems
+--------------------
+Linux widely employs the use of special filesystems for certain tasks. 
+Note that some of these special filesystems have mount points, such as proc at /proc or sys at /sys and others do not. 
+Examples of special filesystems that have no mount point include sockfs or pipefs; 
+These special filesystems are really not true filesystems; 
+they are kernel facilities or subsystems that find the filesystem structural abstraction to be a useful:
+
+FILESYSTEM	MOUNT POINT	PURPOSE
+rootfs	None	During kernel load, provides an empty root directory
+hugetlbfs	Anywhere	Provides extended page access (2 or 4 MB on X86)
+bdev	None	Used for block devices
+proc	/proc	Pseudofilesystem access to many kernel structures and subsystems
+sockfs	None	Used by BSD Sockets
+tmpfs	Anywhere	RAM disk with swapping, re-sizing
+shm	None	Used by System V IPC Shared Memory
+pipefs	None	Used for pipes
+binfmt_misc	Anywhere	Used by various executable formats
+devpts	/dev/pts	Used by Unix98 pseudo-terminals
+usbfs	/proc/bus/usb	Used by USB sub-system for dynamical devices
+sysfs	/sys	Used as a device tree
+debugfs	/sys/kernel/debug	Used for simple debugging file access
+
+Create and mount a new instance of tmpfs Filesytem
+----------------------
+$ sudo mkdir /mnt/tmpfs
+$ sudo mount -t tmpfs none /mnt/tmpfs
+See how much space the filesystem has been given and how much it is using:
+$ df -h /mnt/tmpfs
+You could change the allotted size as a mount option as in:
+$ sudo mount -t tmpfs -o size=1G none /mnt/tmpf
+
+20: Disk Partitioning
+=====================
+Learning Objectives
+-Describe and contrast the most common types of hard disks and data buses
+-Explain disk geometry and other partitioning concepts
+-Understand how disk devices are named and how to identify their associated device nodes
+-Use utilities such as fdisk, blkid and lsblk
+-Distinguish among and select different partitioning strategies
+-Back up and restore partition tables
+
+Common Disk Types
+------------------
+There are a number of different hard disk types, each of which is characterized by the type of data bus they are attached to, and other factors such as speed, capacity, how well multiple drives work simultaneously, etc.
+
+Disk Types
+-SATA disks were designed to replace the old IDE drives. They offer a smaller cable size (7 pins), native hot swapping, and faster and more efficient data transfer. They are seen as SCSI devices.
+-SCSI disks range from narrow (8 bit bus) to wide (16 bit bus), with a transfer rate from about 5 MB per second (narrow, standard SCSI) to about 160 MB per second (Ultra-Wide SCSI-3). SCSI has numerous versions such as Fast, Wide, and Ultra, Ultrawide.
+-SAS uses a newer point-to-point serial protocol, has a better performance than SATA disks and is better suited for servers. See the "SAS vs SATA: What's the Difference" article by Zach Cabading to learn more.
+-Universal Serial Bus: These include flash drives and floppies. And are seen as SCSI devices.
+-Modern SSD drives have come down in price, have no moving parts, use less power than drives with rotational media, and have faster transfer speeds. Internal SSDs are even installed with the same form factor and in the same enclosures as conventional drives. SSDs still cost a bit more, but price is decreasing. It is common to have both SSDs and rotational drives in the same machines, with frequently accessed and performance critical data transfers taking place on the SSDs.
+-IDE and EIDE (Integrated Drive Electronics, Enhanced IDE) These are obsolete.
+
+
+Disk Geometry
+------------------
+Rotational disks are composed of one or more platters and each platter is read by one or more heads. 
+Heads read a circular track off a platter as the disk spins. Circular tracks are divided into data blocks called sectors. Historically, disks were manufactured with sectors of 512 bytes; 4 KB is now most common by far; larger sector sizes can lead to faster transfer speeds. Linux still uses a logical sector size of 512 bytes for backward compatibility, but this is simply for pretend in software. A cylinder is a group which consists of the same track on all platters.
+
+The physical structural image has become less and less relevant as internal electronics on the drive actually obscure much of it. 
+Furthermore, SSDs have no moving parts or anything like the above ingredients, and for SSDs these geometry concepts make no sense.
+
+Command:
+$ sudo fdisk -l /dev/sdc |grep -i sector
+
+Note the use of the -l option which simply lists the partition table without entering interactive mode.
+
+Partition Organization
+-------------------
+Disks are divided into partitions. A partition is a physically contiguous region on the disk. 
+On the most common architectures, there are two partitioning schemes in use:
+
+-MBR (Master Boot Record)
+-GPT (GUID Partition Table)
+-MBR dates back to the early days of MSDOS. When using MBR, a disk may have up to four primary partitions. One of the primary partitions can be designated as an extended partition, which can be subdivided further into logical partitions with 15 partitions possible.
+
+When using the MBR scheme, if we have a SCSI, for example, /dev/sda, 
+then /dev/sda1 is the first primary partition and /dev/sda2 is the second primary partition.
+If we created an extended partition /dev/sda3, it could be divided into logical partitions. All partitions greater than four are logical partitions (meaning contained within an extended partition). There can only be one extended partition, but it can be divided into numerous logical partitions.
+
+Linux doesn't require partitions to begin or end on cylinder boundaries, but other operating systems might complain if they don't. 
+For this reason, the widely deployed Linux paritioning utilities try to play nice and end on boundaries. 
+Obviously, partitions should not overlap either.
+
+GPT is on all modern systems and is based on UEFI (Unified Extensible Firmware Interface). 
+By default, it may have up to 128 primary partitions. When using the GPT scheme, there is no need for extended partitions. Partitions can be up to 233 TB in size (with MBR, the limit is just 2TB).
+
+Why Partition?
+------------------
+There are multiple reasons as to why it makes sense to divide your system data into multiple partitions, including:
+-Separation of user and application data from operating system files
+-Sharing between operating systems and/or machines
+-Security enhancement by imposing different quotas and permissions for different system parts
+-Size concerns; keeping variable and volatile storage isolated from stable
+-Performance enhancement of putting most frequently used data on faster storage media
+-Swap space can be isolated from data and also used for hibernation storage.
+
+Deciding what to partition and how to separate your partitions is cause for thought. 
+The reasons to have distinct partitions include increased granularity of security, quota, settings or size restrictions. You could have distinct partitions to allow for data protection.
+
+A common partition layout contains a /boot partition, a partition for the root filesystem /, 
+a swap partition, and a partition for the /home directory tree.
+
+Keep in mind that it is more difficult to resize a partition after the fact than during install/creation time. Plan accordingly.
+
+
+MBR Partition Table
+-------------------------
+The disk partition table is contained within the disk's Master Boot Record (MBR), and is the 64 bytes following the 446 byte boot record. 
+One partition on a disk may be marked active. When the system boots, that partition is where the MBR looks for items to load.
+
+Remember that there can be only one extended partition, but that partition may contain a number of logical partitions.
+
+The structure of the MBR is defined by an operating system-independent convention. 
+The first 446 bytes are reserved for the program code. They typically hold part of a boot loader program. The next 64 bytes provide space for a partition table of up to four entries. The operating system needs this table for handling the hard disk.
+
+On Linux systems, the beginning and ending address in CHS is ignored.
+
+Note for the curious, there are 2 more bytes at the end of the MBR known as the magic number, signature word, or end of sector marker, 
+which always have the value 0x55AA.
+
+The MBR contains a partition table with four primary partitions and a larger number of extended partitions, 
+as well as some basic code needed to boot the system. Representation of a disk partition table - boot code 446 bytes, 
+partition 1 - 16 bytes, partition 2 - 16 bytes, partition 3 - 16 bytes, partition 4 - 17 bytes, 0x55AA.
+
+MBR Disk Partition Table
+Each entry in the partition table is 16 bytes long, and describes one of the four possible primary partitions. The information for each is:
+-Active bit
+-Beginning address in cylinder/head/sectors (CHS) format
+-Partition type code, indicating: xfs, LVM, ntfs, ext4, swap, etc.
+-Ending address in CHS
+-Start sector, counting linearly from 0
+-Number of sectors in partition.
+-Linux only uses the last two fields for addressing, using the linear block addressing (LBA) method.
+
+
+GPT Partition Table
+---------------------------
+Modern hardware comes with GPT support; MBR support will gradually fade away.
+
+The Protective MBR is for backwards compatibility, so UEFI systems can be booted the old way.
+
+There are two copies of the GPT header, at the beginning and at the end of the disk, describing metadata:
+-List of usable blocks on disk
+-Number of partitions
+-Size of partition entries. Each partition entry has a minimum size of 128 bytes.
+ 
+GPT layout. For modern systems using GPT, the partition table exists both at the front and back of the disk.
+
+The blkid utility (to be discussed later) shows information about partitions.
+On a modern UEFI/GPT system run the following command:
+$ sudo blkid /dev/sda8
+
+On a legacy MBR system use this command:
+$ sudo blkid /dev/sdb2
+
+Note both examples give a unique UUID, which describes the filesystem on the partition, not the partition itself. 
+It changes if the filesystem is reformatted.
+
+The GPT partition also gives a PARTUUID which describes the partition and stays the same even if the filesystem is reformatted.
+If the hardware supports it, it is possible to migrate an MBR system to GPT, but it is not hard to brick the machine while doing so. Thus, usually the benefits are not worth the risk.
+
+
+Naming Disk Devices and Device Nodes
+-------------------------------------
+The Linux kernel interacts at a low level with disks through device nodes normally found in the /dev directory. 
+Normally, device nodes are accessed only through the infrastructure of the kernel's Virtual File System; raw access through the device nodes is an extremely efficient way to destroy a filesystem. 
+
+For an example of proper raw access, you can format a partition, as in this command:
+$ sudo mkfs.ext4 /dev/sda9
+
+Device nodes for SCSI and SATA disks follow a simple xxy[z] naming convention, where xx is the device type (usually sd), 
+y is the letter for the drive number (a, b, c, etc.), and z is the partition number:
+-The first hard disk is /dev/sda
+-The second hard disk is /dev/sdb
+-Etc.
+
+Partitions are also easily enumerated, as in:
+-/dev/sdb1 is the first partition on the second disk
+-/dev/sdc4 is the fourth partition on the third disk.
+
+In the above, sd means SCSI or SATA disk. Back in the days where IDE disks could be found, they would have been /dev/hda3, /dev/hdb, etc.
+
+Doing ls -l /dev will show you the current available disk device nodes.
+
+blkid
+------------------------
+blkid is a utility to locate block devices and report on their attributes.
+It works with the libblkid library. 
+It can take as an argument a particular device or list of devices. 
+
+It can determine the type of content (e.g. filesystem, swap) a block device holds, 
+and also attributes (tokens, NAME=value pairs) from the content metadata (e.g., LABEL or UUID fields).
+
+blkid will only work on devices which contain data that is finger-printable: 
+e.g., an empty partition will not generate a block-identifying UUID. 
+blkid has two main forms of operation: either searching for a device with a specific NAME=value pair, 
+or displaying NAME=value pairs for one or more devices. Without arguments, it will report on all devices. 
+There are quite a few options designating how to specify devices and what attributes to report on. Other sample commands:
+
+$ sudo blkid
+$ sudo blkid /dev/sda*
+$ sudo blkid -L root
+
+lsblk
+-----------------
+A related utility is lsblk which presents block device information in a tree format, as in the following screenshot.
+
+Command:
+$ lsblk -h
+
+Usage:
+ lsblk [options] [<device> ...]
+
+List information about block devices.
+
+Options:
+ -a, --all print all devices
+ -b, --bytes print SIZE in bytes rather than in human readable format
+ -d, --nodeps don't print slaves or holders
+ -D, --discard print discard capabilities
+ -z, --zoned print zone model
+ -e, --exclude <list> exclude devices by major number (default: RAM disks)
+ -f, --fs output info about filesystems
+ -i, --ascii use ascii characters only
+ -I, --include <list> show only devices with specified major numbers
+ -J, --json use JSON output format
+ -l, --list use list format output
+ -T, --tree use tree format output
+ -m, --perms output info about permissions
+ -n, --noheadings don't print headings
+ -o, --output <list> output columns
+ -O, --output-all output all columns
+ -p, --paths print complete device path
+ -P, --pairs use key="value" output format
+ -r, --raw use raw output format
+ -s, --inverse inverse dependencies
+ -S, --scsi output info about SCSI devices
+ -t, --topology output info about topology
+ -x, --sort <column> sort output by <column>
+
+ -h, --help display this help
+ -V, --version display version
+
+Sizing Up Partitions
+-----------------------------------
+Most Linux systems should use a minimum of two partitions.
+-root (/) is used for the filesystem. Most installations will have more than one filesystem on more than one partition, which are joined together at mount points. 
+It is difficult with most filesystem types to resize the root partition, but using LVM (discussed later) can make this easier. 
+While it is certainly possible to run Linux with just the root partition, most systems use more partitions to allow for easier backups, more efficient use of disk drives, and better security.
+-Swap is used as an extension of physical memory. 
+The usual recommendation is swap size should be equal to physical memory in size; sometimes twice that is recommended. 
+However, the correct choice depends on the related issues of system use scenarios as well as hardware capabilities. 
+Adding more and more swap will not necessarily help because at a certain point it becomes useless. 
+One will need to either add more memory or re-evaluate the system setup.
+
+On older rotational hard drive media, it may make more sense to have a separate swap partition, but on SSD-type media, this is unimportant. 
+However, one still may want to put swap on slower and probably cheaper hardware. This is true whether you use a partition or a file, which is becoming a more prevalent choice. 
+
+Some distributions, including Ubuntu, default to use of a swap file rather than a partition:
+-It is more flexible (resizing is easier, for example)
+-It can be more dangerous, however, if error or bug spreads corruption
+-Note that some distributions are now using (optionally) zram, which instead of using disk storage for swap, uses compressed memory. 
+This can easily lead to out of memory conditions, but in expert hands, it can improve performance.
+
+
+Backing Up and Restoring Partition Tables
+--------------------
+Always assume changing the disk partition table might eliminate all data in all filesystems (it should not, but be cautious!).
+Thus, it is always prudent to make a backup of all data (that is not already backed up) before doing any of this type of work.
+ 
+For MBR systems, dd can be used for converting and copying files. 
+However, be careful using dd: a simple typing error or misused option could destroy your entire disk.
+
+The following command will back up the MBR (along with the partition table):
+$ dd if=/dev/sda of=mbrbackup bs=512 count=1
+
+The MBR can be restored using the following command:
+$ sudo dd if=mbrbackup of=/dev/sda bs=512 count=1
+
+The above dd commands only copy the primary partition table; 
+they do not deal with any partition tables stored in the other partitions (for extended partitions, etc.).
+
+For GPT systems it is best to use the sgdisk tool, as in this command:
+x8:/tmp>sudo sgdisk -p /dev/sda
+
+Note if run on a pure MBR system, the output is different:
+c8:/tmp>sudo sgdisk -p /dev/sda
+
+Partition Table Editors
+-----------------------------------
+There are a number of utilities which can be used to manage partition tables.
+
+fdisk is a menu-driven partition table editor. It is the most standard and one of the most flexible of the partition table editors. 
+As with any partition table editor, make sure that you either write down the current partition table settings or make a copy of the current settings before making changes.
+
+The sfdisk command is a non-interactive Linux-based partition editor program, making it useful for scripting. 
+Use the sfdisk tool with care.
+
+For GPT systems, gdisk and sgdisk play a similar role. Both also work on MBR systems.
+
+parted is the GNU partition manipulation program. It can create, remove, resize, and move partitions (including certain filesystems). 
+The GUI interface to the parted command is gparted.
+
+Many Linux distributions have a live/installation version which can be run off either a CDROM or USB stick, 
+which include a copy of gparted, so they can easily be used as a graphical partitioning tool on disks which are not actually being used while the partitioning program is run.
+
+Using fdisk
+-------------------------
+fdisk is part of the base Linux installation, so it is a good idea to learn how to use it. 
+You must be root to run fdisk. It can be somewhat complex to handle, and caution is advised. The fdisk interface is simple and text-menu driven. 
+After starting on a particular disk, as in this command:
+$ sudo fdisk /dev/sdb
+
+you can issue the one-letter commands itemized below:
+m: Display the menu
+p: List the partition table
+n: Create a new partition
+d: Delete a partition
+t: Change a partition type
+w: Write the new partition table information and exit
+q: Quit without making changes
+
+Fortunately, no actual changes are made until you write the partition table to the disk by entering w. 
+It is therefore important to verify your partition table is correct (with p) before writing to disk with w. If something is wrong, you can jump out safely with q.
+
+The system will not use the new partition table until you reboot. However, you can use the following command:
+$ sudo partprobe -s
+
+to try and read in the revised partition table. 
+However, this doesn't always work reliably and it is best to reboot before doing things like formatting new partitions, 
+etc., as mixing up partitions can be catastrophic.
+
+At any time you can run the following command:
+$ cat /proc/partitions
+to examine what partitions the operating system is currently aware of.
+
+You can display the partition table and take no action with the following command:
+$ sudo fdisk -l /dev/sda
+
+
+Filesystems
+======================
+
+lsattr and chattr
+----------------------
+File flags: i=inmutable, a=append-only, d=no-dump, A=No Atime Update
+Note that there are other flags that can be set; typing man chattr will show the whole list. 
+$ chattr [+|-|=mode] filename
+lsattr is used to display attributes for a file. 
+$ lsattr filename
+
+Mkfs
+----------------------
+For formatting a filesystem in a partition. The general format for the mkfs command is:
+mkfs [-t fstype] [options] [device-file]
+where [device-file] is usually a device name like /dev/sda3 or /dev/vg/lvm1.
+The following two commands are entirely equivalent:
+$ sudo mkfs -t ext4 /dev/sda10
+$ sudo mkfs.ext4 /dev/sda10
+
+Checking File Integrity
+----------------------
+In fedora you can also use rpm -Va to check the integrity of all packages.
+$ rpm -V some_package
+$ rpm -Va
+Using aide is another way, will scan on your files and compare them to the last scan:
+$ aide --check
+In Debian, the only way is with debsums that check checksums:
+$ debsums options some_package
+
+Filesystem Corruption and Recovery
+----------------------
+fsck may be used to attempt repair. However, before doing that, one should check that /etc/fstab has not been misconfigured or corrupted.
+
+The general format for the fsck command is:  fsck [-t fstype] [options] [device-file]
+
+You can control whether any errors found should be fixed one by one manually with the -r option, or automatically, as best possible, by using the -a option, etc.
+
+The following two commands are entirely equivalent:
+$ sudo fsck -t ext4 /dev/sda10
+$ sudo fsck.ext4 /dev/sda10
+If the filesystem is of a type understood by the operating system, you can just:
+$ sudo fsck /dev/sda10
+
+fsck  should only be run when not unmounted cleanly previously, and should not be run on mounted filesystems. You can force a check of all mounted filesystems at boot by running these commands: (useful to check mounted root in running systems)
+$ sudo touch /forcefsck
+$ sudo reboot
+
+df: Filesystem Usage
+----------------------
+df (disk free) is used to look at filesystem usage:
+To display filesystem usage (in K bytes-default):
+$ df
+To display filesystem usage in human-readable format:
+$ df -h
+To display filesystem type format:
+$ df -T
+To show inode information:
+$ df -i
+
+du: Disk Usage
+----------------------
+du (disk usage) is used to look at both disk capacity and usage.
+To display disk usage for the current directory:
+$ du
+To list all files, not just directories:
+$ du -a
+To list in human-readable format:
+$ du -h
+To display disk usage for a specific directory:
+$ du -h somedir
+Try the following command:
+$ find . -maxdepth 1 -type d -exec du -shx {} \; | sort -hr
+
+Mount
+----------------------
+The mount program allows attaching at any point in the tree structure; umount allows detaching them.
+The mount point is the directory where the filesystem is attached. It must exist before mount can use it. If a pre-existing directory is used and it contains files prior to being used as a mount point, they will be hidden after mounting. These files are not deleted and will again be visible when the filesystem is unmounted.
+
+The general form for the mount command is: mount [options] <source> <directory>
+
+$ mount -t ext /dev/sdb4 /home
+    • Mounts an ext4 filesystem
+    • Usually not necessary to specify the type with the -t option
+    • The filesystem is located on a specific partition of a hard drive (/dev/sdb4)
+    • The filesystem is mounted at the position /home in the current directory tree
+    • Any files residing in the original /home directory are hidden until the partition is unmounted
+
+it is also possible to mount using a label or a UUID. Thus, the following commands are all equivalent:
+$ sudo mount  /dev/sda2 /home
+$ sudo mount LABEL=home /home
+$ sudo mount    -L home /home
+$ sudo mount UUID=26d58ee2-9d20-4dc7-b6ab-aa87c3cfb69a /home
+$ sudo mount   -U 26d58ee2-9d20-4dc7-b6ab-aa87c3cfb69a /home
+
+Using UUIDs is better cos they always be unique, and are created when partitions are created. Using node devices is deprecated because names change
+
+The list of currently mounted filesystems can be seen by typing: mount
+
+umount
+----------------------
+Filesystems can be unmounted, as in the following command:
+$ umount [device-file | mount-point]
+    • Unmount the /home filesystem with this command: 
+$ umount /home
+    • Unmount the /dev/sda3 device by running this command: 
+$ umount /dev/sda3
+
+If a FS to unmount is busy, you must kill their processes before unmounting. You can use fuser to find out which users are using the filesystem and kill them. You can also use lsof ("list open files") to try and see which files are being used and blocking unmounting.
+
+Network Shares (NFS)
+----------------------
+It is common to mount remote filesystems through network shares, so they appear as if they were on the local machine. The most common method has been NFS (Network File System).
+
+Since depend on the network a system should be instructed not to get hung, or blocked, while waiting longer than a specified period, like below:
+$ sudo mount -t nfs myserver.com:/shdir /mnt/shdir
+Or put the following line in /etc/fstab to mount on boot or with mount -a:
+myserver.com:/shdir /mnt/shdir nfs rsize=8192,wsize=8192,timeo=14,intr 0 0
+
+The system may try to mount the NFS filesystem before the network is up. The netdev and noauto options can be used. It can also be solved using autofs or automount.
+
+Mounting at Boot and /etc/fstab
+----------------------
+During system initialization, the following command: $ mount -a
+is executed in order to mount all filesystems listed in the /etc/fstab file.
+/etc/fstab is used to define mountable filesystems and devices on startup. 
+
+/etc/fstab
+Each record in the /etc/fstab file contains information about a filesystem to be mounted at boot. Each record in the file contains:
+    • Device file name (such as /dev/sda1), label, or UUID
+    • Mount point for the filesystem (where in the tree structure is it to be inserted)
+    • Filesystem type
+    • A comma-separated list of options
+    • dump frequency used by the dump -w command, or a zero which is ignored by dump
+    • fsck pass number or a zero - meaning do not fsck this partition
+
+Automatic Filesystem Mounting
+----------------------
+Linux systems have long had the ability to mount a filesystem only when it is needed. Historically, this was done using autofs. 
+But systemd-based systems (including all enterprise Linux distributions) come with automount facilities built into the systemd framework. Configuring this is as simple as adding a line in /etc/fstab specifying the proper device, mount point and mounting options, such as:
+LABEL=Sam128 /SAM ext4 noauto,x-systemd.automount,x-systemd.device-timeout=10,x-systemd.idle-timeout=30 0 0
+and then, either rebooting or issuing the command:
+$ sudo systemctl daemon-reload
+$ sudo systemctl restart local-fs.target
+
+automount Example
+----------------------
+The example provided below mounts a USB pen drive that is always plugged into the system, only when it is used. Options in /etc/fstab:
+    • noauto: Do not mount at boot. Here, auto does not refer to automount.
+    • x-systemd.automount: Use the systemd automount facility.
+    • x-systemd.automount.device-timeout=10
+If this device is not available, could be like NFS, timeout after 10 seconds instead of getting hung.
+    • x-systemd.automount.idle-timeout=30: If the device is not used for 30 seconds, unmount it.
+
+Network Block Devices (NBD)
+----------------------
+A Network Block Device is a Linux protocol designed to export a block device from a source computer (server) to a target (client). The NBD can use either Unix sockets or TCP/IP for communication.
+On the client side, the data blob presented by the server is mapped through an nbd kernel module and accessed as a block device, recognized by names like /dev/nbd0, /dev/nbd1, etc.
+
+NBD User Utilities
+There are several nbd clients and server packages available, including:
+    • nbdkit: CentOS, Fedora, Debian, Ubuntu
+    • nbd-client and nbd-server: Ubuntu, Debian
+    • nbd (from GitHub): CentOS, Fedora, Debian, Ubuntu
+    • xNBD-client and xNBD-server: Debian.       * qemu-img: CentOS
+
+An example of the user and administrator utilities for Ubuntu 22.04:
+    • nbd-server-conf is an example of a configuration file for the server containing:
+        ◦ IP address and port to listen for connection, storage device to export as a disk, some optional control elements.
+    • nbd-server, nbd-server man page, nbd-client, nbd-client man page.
+
+Network Block Device Example
+----------------------
+Ensure the nbd kernel modules are loaded using the following command:
+$ sudo modprobe -i nbd
+Connect the exported foo on 192.168.242.160 to the local device /dev/nbd10:
+$ sudo nbd-client -N foo 192.168.242.160 /dev/nbd10
+Start the nbd server process with the following command:
+$ sudo nbd-server -C nbd-server.conf
+List the exports on the server from the client with the following command:
+$ sudo nbd-client -l 127.0.0.1 10042
+Connect the export foo to the local device /dev/nbd0:
+$ sudo nbd-client -N foo 127.0.0.1 10042 /dev/nbd0
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+Ext4
+=============================
+ext4 Superblock and Block Groups
+-----------------------
+The superblock at the beginning contains information about the entire filesystem. It is followed by Block Groups composed of sets of contiguous blocks:
+    • Include administrative information
+    • High redundancy of information in block groups
+    • Other blocks store file data
+
+The default block size is 4 KB, which would create a block group of 128 MB.
+The superblock will start at the first block. followed by the group descriptors and a number of GDT (Group Descriptor Table) blocks. Then the data block bitmap, the inode bitmap, the inode table, and the data blocks.
+
+The superblock for the filesystem is stored in block 0 of the disk. This superblock contains global information about the filesystem, snd is redundantly storaged in several blocks.
+    • Mount count and maximum mount count
+    • Block size for this filesystem 
+    • Blocks per group
+    • Free block count
+    • Free Inode count
+    • OS ID
+
+Block and Inode Information for ext4: dumpe2fs
+-----------------------
+The block size is used to set the maximum number of:
+    • Blocks
+    • Inodes
+    • Superblocks
+You can use the dumpe2fs program to get information about a particular partition/fs such as limits, capabilities and flags, as well as other attributes.
+$ sudo dumpe2fs /dev/sdb1
+
+Change Filesystem Parameters: tune2fs
+-----------------------
+tune2fs can be used to change filesystem parameters. To change the maximum number of mounts between filesystem checks (max-mount-count) run:
+$ sudo tune2fs -c 25 /dev/sda1
+To change the time interval between checks (interval-between-checks):
+$ sudo tune2fs -i 10 /dev/sda1
+To list the contents of the superblock:
+$ sudo tune2fs -l /dev/sda1
+It basically shows the global information from dumpe2fs.
+$ sudo tune2fs -l /dev/sdb1
+
+
+LVM Logical Volume Management
+===========================
+Logical Volume Management (LVM)
+-----------------------
+LVM (Logical Volume Management) breaks up one virtual partition into multiple chunks, each of which can be on different partitions and/or disks.
+There are many advantages to using LVM; in particular, it becomes really easy to change the size of the logical partitions and filesystems, to add more storage space, rearrange things, etc.
+One or more physical volumes (disk partitions) are grouped together into a volume group. Then, the volume group is subdivided into logical volumes, and can be formatted to contain mountable filesystems.
+
+Volumes and Volume Groups
+-----------------------
+Partitions are converted to physical volumes and multiple physical volumes are grouped into volume groups; there can be more than one volume group on the system. 
+
+There are a number of command line utilities used to create and manipulate volume groups, whose name always start with vg, including:
+    • vgcreate: Creates volume groups
+    • vgextend: Adds to volume groups
+    • vgreduce: Shrinks volume groups
+Utilities that manipulate what physical partitions enter or leave volume groups start with pv and include:
+    • pvcreate: Converts a partition to a physical volume
+    • pvdisplay: Shows the physical volumes being used
+    • pvmove: Moves the data from one physical volume within the volume group to others; this might be required if a disk or partition is being removed for some reason. It would then be followed by:
+    • pvremove: Remove a partition from a physical volume
+
+Creating Logical Volumes
+-----------------------
+lvcreate allocates logical volumes from within volume groups.
+lvdisplay reports on available logical volumes.
+Filesystems are placed in logical volumes and are formatted with mkfs, as usual.
+
+The steps involved in setting up and using a new logical volume are:
+    1. Create partitions on disk drives (type 8e in fdisk).
+    2. Create physical volumes from the partitions.
+    3. Create the volume group.
+    4. Allocate logical volumes from the volume group.
+    5. Format the logical volumes.
+    6. Mount the logical volumes (also update the /etc/fstab file as needed).
+For example, assuming you have already created partitions /dev/sdb1 and /dev/sdc1:
+$ sudo pvcreate /dev/sdb1
+$ sudo pvcreate /dev/sdc1
+$ sudo vgcreate -s 16M vg /dev/sdb1
+$ sudo vgextend vg /dev/sdc1
+$ sudo lvcreate -L 50G -n mylvm vg
+$ sudo mkfs -t ext4 /dev/vg/mylvm
+$ sudo mkdir /mylvm
+$ sudo mount /dev/vg/mylvm /mylvm
+Be sure to add the line:
+/dev/vg/mylvm /mylvm ext4 defaults 1 2 to /etc/fstab to make it persistent
+
+Displaying Logical Volumes
+-----------------------
+pvdisplay shows one or more physical volumes. If you leave off the physical volume name, it lists all physical volumes (the same for vgdisplay and lvdisplay):
+$ pvdisplay
+$ pvdisplay /dev/sda5
+vgdisplay shows one or more volume groups. 
+$ vgdisplay
+$ vgdisplay /dev/vg0
+lvdisplay shows one or more logical volumes.
+$ lvdisplay
+$ lvdisplay /dev/vg0/lvm1
+
+Resize a Logical Volume
+-----------------------
+When expanding a logical volume with a filesystem, you must first expand the volume, and then expand the filesystem. When shrinking a logical volume with a filesystem, you must first shrink the filesystem, and then shrink the volume
+
+This is best done with lvresize, as in the following command:
+$ sudo lvresize -r -L 20 GB /dev/VG/mylvm
+where the -r option causes resizing of the filesystem at the same time as the volume size is changed.
+To grow a logical volume with an ext4 filesystem, run the following command:
+$ sudo lvresize -r -L +100M /dev/vg/mylvm
+where the plus sign (+) indicates adding space. Note that you need not unmount the filesystem to grow it.
+To shrink the filesystem, run the following command:
+$ sudo lvresize -r -L 200M /dev/vg/mylvm
+You can also reduce a volume group as in:
+$ sudo pvmove /dev/sdc1
+$ sudo vgreduce vg /dev/sdc1
+The filesystem cannot be mounted when being shrunk. However, some filesystems permit expansion while they are mounted.
+The utilities which change the filesystem size are filesystem-dependent; besides lvresize, we can also use lvextend, lvreduce with resize2fs.
+
+LVM Snapshot
+-----------------------
+
+To create a snapshot of an existing logical volume use this command:
+$ sudo lvcreate -l 128 -s -n mysnap /dev/vg/mylvm
+To then make a mount point and mount the snapshot run the following command:
+$ mkdir /mysnap
+$ mount -o ro /dev/vg/mysnap /mysnap
+To use the snapshot and to remove the snapshot do:
+$ sudo umount /mysnap
+$ sudo lvremove /dev/vg/mysnap
+
+Kernel Services and Configuration
+=========================
+sysctl
+The sysctl interface can be used to read and tune kernel parameters at run time. The screenshot shows you how the current values can be displayed by doing:
+$ sysctl -a
+
+Each value corresponds to a particular pseudofile residing under /proc/sys, with directory slashes being replaced by dots. For example, the following two commands are equivalent:
+$ sudo sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'
+$ sudo sysctl net.ipv4.ip_forward=1
+where the second form is used to set a value with the sysctl command line interface. Do not leave spaces around the = sign in this command. 
+
+If settings are placed in the /etc/sysctl.conf file (see man sysctl.conf for details), settings can be fixed at boot time.
+Note that typing this command:
+$ sudo sysctl -p
+effectuates immediate digestion of the file, setting all parameters as found; this is also part of the boot process.
+With the advent of systemd, things are a little more complicated. Vendors put their settings in files in the /usr/lib/sysctl.d/ directory. These can be added to or supplanted by files placed in /etc/sysctl.d.
+
+Find out kernel pid max value
+$ sysctl kernel.pid_max. or
+$ cat /proc/sys/kernel/pid_ma
+Now se it to a value
+$ sudo sysctl kernel.pid_max=24000
+$ echo 24000 >  /proc/sys/kernel/pid_max # This must be done as root
+
+Kernel Modules
+============================
+Kernel modules are located in /lib/modules/$(uname -r) and can be compiled for specific kernel versions.
+Parameters can be specified when loading modules to control their behavior. 
+
+While the module is loaded, you can always see its status with the lsmod command:
+
+If you are running a distribution kernel,  modules are easy to find;  you can simply look in the /lib/modules/(kernel-version) /kernel/ directory 
+
+Module Utilities
+-----------------------
+There are a number of utility programs that are used with kernel modules:
+    • lsmod: List loaded modules.
+    • insmod: Directly load modules.
+    • rmmod: Directly remove modules.
+    • modprobe: Load or unload modules, using a pre-built module database with dependency and location information.
+    • depmod: Rebuild the module dependency database.
+    • modinfo: Display information about a module.
+
+Use the modprobe command to load a module:
+-----------------------
+$ modprobe e1000e
+Use the modprobe -r command to unload or remove a module:
+$ modprobe -r e1000e
+modprobe requires a module dependency database be updated. Use the depmod command to generate or update the file /lib/modules/$(uname -r)/modules.dep.
+Use the insmod command to directly load a module (requires fully qualified module name):
+$ insmod /lib/modules/$(uname -r)/kernel/drivers/net/ethernet/intel/e1000e.ko
+Use the rmmod command to directly remove a module:
+$ rmmod e1000e
+Use the lsmod command to list the loaded modules:
+$ lsmod
+Use the modinfo command to display information about a module (including parameters):
+$ modinfo e1000e
+
+Some Considerations with Modules
+-----------------------
+Modules are usually loaded with modprobe, not insmod.
+Modules loaded with non-acceptable open source licenses mark the kernel as tainted.
+    • It is impossible to unload a module being used by one or more other modules, which one can ascertain from the lsmod listing.
+    • It is impossible to unload a module that is being used by one or more processes.
+    • When a module is loaded with modprobe, the system will automatically load any other modules that need to be loaded first.
+    • When a module is unloaded with modprobe -r, the system will automatically unload any other modules being used by the module.
+
+Module information
+-----------------------
+Modinfo command display info about module
+Much information about modules can also be seen in the /sys pseudo-filesystem directory tree; in our example, you would look under /sys/module/sg and some, if not all parameters, can be read and/or written under /sys/module/sg/parameters.
+
+Many modules can be loaded while specifying parameter values, such as in this command:
+$ sudo /sbin/insmod <pathto>/e1000e.ko debug=2 copybreak=256
+or, for a module already in the proper system location, it is easier achieved with the following command:
+$ sudo /sbin/modprobe e1000e debug=2 copybreak=256
+
+/etc/modprobe.d
+-----------------------
+All files in the /etc/modprobe.d subdirectory tree which end with the .conf extension are scanned when modules are loaded and unloaded using modprobe.
+
+
+Devices and UDEV
+======================
+
+udev
+------------------------
+udev handles loading and unloading device drivers with proper configurations, as need,. udev actions include:
+    • Device naming
+    • Device file and symlink creating
+    • Setting file attributes
+    • Taking needed actions
+When devices are added or removed from the system, udev receives a message from the kernel. It then parses the rules files in the /etc/udev/rules.d directory to see if any rules are there for the device added or removed.
+These rules are totally customizable and can specify device file names, device file creation, specify symlinks to be created, specify file attributes to be set for the device file (including user and group ownership), and even specify actions to be taken (programs to be executed).
+
+Device Nodes
+-----------------------
+Character and block devices have device nodes; network devices do not. These device nodes can be used by programs to communicate with devices through nodes using normal I/O methods.
+A device driver may use multiple device nodes. Device nodes are located in the /dev directory.  $ ls -l /dev
+
+Device Nodes Provide Hardware Access
+In addition to providing some required pseudo-devices, including /dev/null and /dev/zero, the device nodes present in /dev are the primary or first interaction with the hardware on a machine. Some common devices are:
+    • /dev/sd* – devices appearing as hard drives
+    • /dev/ttyS* – serial ports, often used as consoles
+    • /dev/snd/* – various sound devices
+
+udev Components
+-----------------------
+udev runs as a daemon (either udevd or systemd-udevd) and monitors a netlink socket. When new devices are initialized or removed, the uevent kernel facility sends a message through the socket, which udev receives and takes appropriate action.
+The three components of udev are:
+    • The libudev library which allows access to information about the devices.
+    • The udevd or systemd-udevd daemon that manages the /dev directory.
+    • The udevadm utility for control and diagnostics.
+
+udev Rule Files
+-----------------------
+udev rules files are located under /etc/udev/rules.d/<rulename>.rules and /usr/lib/udev/rules.d/<rulename>.rules with names like:
+    • 70-mouse.rules
+    • 60-persistent-storage.rules
+
+Creating udev Rules
+-----------------------
+Rules files can be in three places, and if they have same name the priority order is:
+    1. /etc/udev/rules.d
+    2. /run/udev/rules.d
+    3. /usr/lib/udev/rules.d
+The format for a udev rule is simple:
+<match><op>value [, ...] <assignment><op>value [, ... ]
+There are two separate parts defined on a single line. The first part consists of one or more match pairs (denoted by double equal signs). These will match a device’s attributes and/or characteristics to some value. The second part consists of one or more assignment key-value pairs that assign a value to a name, such as a filename, group assignment, or even file permissions.
+Samples:
+KERNEL=="sdb", NAME="my-spare-disk"
+KERNEL=="sdb", RUN+="/usr/bin/my-program"
+KERNEL=="sdb", MODE="0660", GROUP="mygroup"
+SUBSYSTEM=="cpu", ACTION=="add", PROGRAM="/bin/systemctl try-restart kdump.service"
+
+You can monitor how these rules are applied in real-time by running the following command: $ sudo udevadm monitor
+
+LDAP
+=============================
+
+LDAP Client Authentication Process
+-----------------------
+Connecting to an LDAP server starts with PAM, the pluggable authentication module. PAM is the default authentication mechanism for Linux; LDAP and SSSD are extension modules added to the default authentication configuration.
+    • PAM is configured to use the pam.sss.so module
+    • sss.so and sssd use a combined sssd and LDAP configuration file.
+
+LDAP and sssd packages
+-----------------------
+When you configure a client system for LDAP authentication, the following files are changed:
+    • /etc/sssd/conf.d/00-sssd.conf
+    • /etc/pam.d/common-session.conf
+The /etc/sssd/conf.d/00-sssd.conf file has a 2 digit prefix to allow for sequencing if more than one configuration file is being used.
+The /etc/pam.d configuration files may be different depending on your distribution:
+    • CentOS 8: /etc/pam.d/system-auth
+    • Ubuntu 22.04: /etc/pam.d/common-session.cong
+You can edit these files manually.
+
+
+Network Addresses
+=========================
+
+IP Adresses
+--------------------------
+    • IPv4 is a 32-bit address, composed of 4 octets (an octet is just 8 bits, or a byte). Example: 148.114.252.10
+    • IPv6 is a 128-bit address, composed of 8 16-bit octet pairs.
+Example: 2003:0db5:6123:0000:1f4f:0000:5529:fe23
+
+IPv4 Address Types
+    • Unicast An address associated with a specific host. It might be something like 140.211.169.4 or 64.254.248.193.
+    • Network An address whose host portion is set to all binary zeroes. Ex. 192.168.1.0. (the host portion can be the last 1-3 octets as discussed later; here it is just the last octet). Example: With a single network subnet and only 20 hosts, the simplest thing to do would be to use 255.255.255.0 as your subnet mask. This would mean you would have 192.168.0.1 through 192.168.0.254 for your hosts. The address 192.168.0.0 is reserved as the network subnet identifier, and 192.168.0.255 is reserved for the network broadcast address.
+    • Broadcast An address to which each member of a particular network will listen. It will have the host portion set to all 1 bits, such as in 172.16.255.255 or 148.114.255.255 or 192.168.1.255. (the host portion is the last two octets in the first two cases, just the last one in the third case).
+    • Multticast An address to which appropriately configured nodes will listen. The address 224.0.0.2 is an example of a multicast address. Only nodes specifically configured to pay attention to a specific multicast address will interpret packets for that multicast group.
+
+Reserved Addresses
+-----------------------
+Certain addresses and address ranges are reserved for special purposes.
+
+    • 127.x.x.x Reserved for the loopback (local system) interface, where 0 <= x <= 254. Generally, 127.0.0.1.
+    • 0.0.0.0 Used by systems that do not yet know their own address. Protocols like DHCP and BOOTP use this address when attempting to communicate with a server.
+    • 255.255.255.255 Generic broadcast private address, reserved for internal use. These addresses are never assigned or registered to anyone. They are generally not routable.
+    • Other reserved addresses Other examples of reserved address ranges include:
+        ◦ 10.0.0.0 - 10.255.255.255
+        ◦ 172.16.0.0 - 172.31.255.255
+        ◦ 192.168.0.0 - 192.168.255.255
+        ◦ Each of these has a purpose. For example, the familiar address range, 192.168.x.x is used only for local communications within a private network.
+
+IPv6 Address Types
+-----------------------
+    • Unicast A packet is delivered to one interface.
+        ◦ Link-local: Auto-configured for every interface to have one. Non-routable.
+        ◦ Global: Dynamically or manually assigned. Routable.
+        ◦ Reserved for documentation.
+    • Multicast A packet is delivered to multiple interfaces.
+    • Anycast A packet is delivered to the nearest of multiple interfaces (in terms of routing distance).
+    • IPv4-Mapped An IPv4 address mapped to IPv6. For example, ::FFFF:a.b.c.d/96
+In addition, IPv6 has some special types of addresses such as loopback, which is assigned to the lo interface, as ::1/128.
+
+IPv4 Address Classes
+-----------------------
+Class A addresses use 8 bits for the network portion of the address and 24 bits for the host portion of the address. Class B addresses use 16 and 16 bits respectively, while Class C addresses use 24 bits for the network portion and 8 bits for the host portion.
+Class D addresses are used for multicasting. Class E addresses are currently not used.
+
+Table: Address Classes
+NETWORK CLASS	HIGHEST ORDER OCTET RANGE	NOTES
+A	1-127	128 networks, 16,772,214 hosts per network, 127.x.x.x reserved for loopback
+B	128-191	16,384 networks, 65,534 hosts per network
+C	192-223	2,097,152 networks, 254 hosts per network
+D	224-239	Multicast addresses
+E	240-254	Reserved address rang
+
+Netmask
+-----------------------
+netmask is used to determine how much of the address is used for the network portion and how much for the host portion as we have seen. It is also used to determine network and broadcast addresses.
+
+Table: Address Classes and Netmasks
+NETWORK CLASS	DECIMAL		
+A	255.0.0.0		
+B	255.255.0.0		
+C	255.255.255.0		
+ 
+We can calculate the network address by anding (logical and - &) the IP address with the netmask. We are interested in the network addresses because they define a local network which consists of a collection of nodes connected via the same media and sharing the same network address. 
+Example:
+ 172.16.2.17 ip address
+&255.255.0.0 netmask
+-----------------
+ 172.16.0.0 network address
+
+Getting and Setting the Hostname
+-----------------------
+The hostname is simply a label to distinguish a networked device from other nodes. Historically, this has also been called a nodename.
+Any user can get the hostname with (command and output below):
+$ hostname
+Changing hostname requires root privilege (command and output below):
+$ sudo hostname lumpy
+The current value is always stored in /etc/hostname on most Linux distributions. To do this persistently so changes survive a reboot use the hostnamectl command, part of the systemd infrastructure: 
+$ sudo hostnamectl set-hostname lumpy
+Historically, making persistent changes involved changing configuration files in the etc directory tree. On Red Hat-based systems this was /etc/sysconfig/network, on Debian-based systems this was /etc/hostname and on SUSE-based systems it was /etc/HOSTNAME. However, one should use the hostnamectl command on modern systems: 
+
+Network Time Protocol (NTP)
+-----------------------
+Many protocols require consistent, if not accurate time to function properly.
+The Network Time Protocol (NTP) is a method to update and synchronize system time. NTP consists of a daemon and a protocol. NTP time sources are divided up into ”strata” ( 4 stratas)
+
+NTP Applications
+There are several NTP applications; some of the most common are:
+    • ntp - the default
+    • chrony - designed to work in a wide range of environments, including intermittent network connections and virtual machines
+    • systemd-timesyncd - an ntp client only included in the systemd package
+Implementation of NTP services varies widely between distributions. Here are the common locations for the ntp applications configuration files:
+    • ntp - /etc/ntp.conf
+    • chrony - /etc/chrony.conf
+    • systemd-timesyncd - /etc/systemd/timesyncd.conf
+
+Configuring the ntpd Client
+-----------------------
+A good NTP server is only as good as its time source. The NTP Pool Project was created to alleviate the load that was crippling the small number of NTP servers.
+To configure your NTP server to use NTP Pool, edit /etc/ntp.conf and add or edit the following settings:
+/etc/ntp.conf
+driftfile /var/lib/ntp/ntp.drift
+pool 0.pool.ntp.org
+pool 1.pool.ntp.org
+pool 2.pool.ntp.org
+pool 3.pool.ntp.org
+The ntpdc -c peers command can show the time differential between the local system and configured time servers. The timedatectl command is in many distributions and may be used to query and control the system time and date.
+# timedatectl
+
+Configuring the ntpd Server
+-----------------------
+The configuration elements for the ntp server are contained in the /etc/ntp.conf file. Here are some of the ntp server relevant items:
+    • Declare the local machine to be a time reference
+        ◦ The server and fudge directives
+    • Regulate who can query the time server with ntpq and ntpdc commands (see CVE-2013-5211)
+        ◦ The restrict directives
+    • Declare which systems are ntp peers
+        ◦ The peers are listed in the /etc/ntp.conf file
+    • Start NTP daemon
+
+Access Control
+-----------------------
+Here is an example of access control entries in /etc/ntp.conf.
+/etc/ntp.conf: access control
+# Default policy prevents queries 
+restrict default nopeer nomodify notrap noquery 
+# Allow queries from a particular subnet 
+restrict 123.123.x.0 mask 255.255.255.0 nopeer nomodify notrap 
+# Allow queries from a particular host 
+restrict 131.243.1.42 nopeer nomodify notrap noquery 
+# Unrestrict localhost 
+restrict 127.0.0.1
+
+Peer Configuration
+-----------------------
+Here is an example of ntp peer configuration entries.
+/etc/ntp.conf: peer configuration
+peer 128.100.49.12 
+peer 192.168.0.1
+
+Declaring Self a Time Source
+-----------------------
+This is an example of the ntp declaring itself as an NTP server. The second line, the fudge entry, specifies this server is a stratum 10 server.
+/etc/ntp.conf: declare self a time source
+server 127.127.1.0 
+fudge 127.127.1.0 stratum 10
+
+
+Network Devices
+============================
+Unlike block and character devices, network devices are not associated with special device files, also known as device nodes. Rather than having associated entries in the /dev directory, they are known by their names.
+These names usually consist of a type identifier followed by a number, as in:
+    • eth0, eth1, eno1, eno2, etc., for ethernet devices.
+    • wlan0, wlan1, wlan2, wlp3s0, wlp3s2, etc., for wireless devices.
+    • br0, br1, br2, etc., for bridge interfaces.
+    • vmnet0, vmnet1, vmnet2, etc., for virtual devices for communicating with virtual clients.
+Historically, multiple virtual devices could be associated with single physical devices
+
+
+Predictable Network Interface Device Names
+-----------------------
+The Predictable Network Interface Device Names (PNIDN) is connected to udev and integration with systemd. There are now 5 types of names that devices can be given:
+    1. Incorporating Firmware or BIOS provided index numbers for onboard devices
+Example: eno1
+    2. Incorporating Firmware or BIOS provided PCI Express hotplug slot index numbers
+Example: ens1
+    3. Incorporating physical and/or geographical location of the hardware connection
+Example: enp2s0
+    4. Incorporating the MAC address
+Example: enx7837d1ea46da
+    5. Using the old classic method
+Example: eth0
+For example, on a machine with onboard PCI network interface that would have been eth0:
+$ ip link show | grep enp
+2: enp4s2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state DOWN mode DEFAULT qlen 1000 
+
+These names are correlated with the physical locations of the hardware on the PCI system (command and output below):
+$ lspci | grep Ethernet
+02:00.0 Ethernet controller: Marvell Technology Group Ltd. 88E8056 PCI-E Gigabit Ethernet Controller (rev 12)
+The triplet of numbers at the beginning of each line from the lspci output is the bus, device (or slot), and function of the device; hence it reveals the physical location.
+$ ip link show | grep wl
+3: wlp3s0: <BROADCAST,MULTICjAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DORMANT qlen 1000
+$ lspci | grep Centrino
+03:00.0 Network controller: Intel Corporation Centrino Advanced-N 6205 [Taylor Peak] (rev 34)
+
+Network Configuration Files
+-----------------------
+Each distribution has its own set of files and/or directories, and they may be slightly different, depending on your distribution version.
+
+    • Red Hat /etc/sysconfig/network
+/etc/sysconfig/network-scripts/ifcfg-ethX
+/etc/sysconfig/network-scripts/ifcfg-ethX:Y
+/etc/sysconfig/network-scripts/route-ethX
+    • Debian /etc/network/interfaces
+    • SUSE /etc/sysconfig/network
+
+Network Manager Interfaces
+-----------------------
+If you are making a configuration change on your system that is likely to last for a while, you are likely to use nmtui (network manager text user interface), as it has almost no learning curve and will edit the underlying configuration files for you. It uses the ncurses library interface.
+If you need to run scripts that change the network configuration, you will want to use nmcli (network manager command line interface). Or, if you are a command line junkie, you may want to use this instead of nmtui the graphical tool
+
+nmcli
+-----------------------
+nmcli is the command line interface to Network Manager. You can issue direct commands, but it also has an interactive mode.
+For many details and examples, you can visit the Networking/CLI Fedora wiki webpage or you can type the following command:
+$ man nmcli-examples
+
+Routing
+-----------------------
+Routing is the process of selecting paths in a network along which to send network traffic. The routing table is a list of routes to other networks managed by the system. It defines paths to all networks and hosts; local packets are sent directly, while remote traffic is sent to routers.
+To see the current routing table, you can use either route (deprecated) or the ip command:
+$ route -n
+$ ip route
+
+Default Route
+-----------------------
+The default route is the way packets are sent when there is no other match in the routing table for reaching the specified network.
+It can be obtained dynamically using DHCP. However, it can also be manually configured (static). With the nmcli command it can be done via:
+$ sudo nmcli con mod virbr0 ipv4.routes 192.168.10.0/24 +ipv4.gateway 192.168.122.0
+$ sudo nmcli con up virbr0
+On Red Hat-derived systems, you can modify the /etc/sysconfig/network file by putting in the line:
+GATEWAY=x.x.x.x
+On Debian-derived systems, the equivalent is putting:
+gateway=x.x.x.x. in the /etc/network/interfaces file.
+On either system, you can set the default gateway at runtime with these commands:
+$ sudo ip route add default via 192.168.1.10 dev enp2s0
+$ ip route
+
+Without the correct default gateway, devices with a static IP address may be unable to communicate with external networks. 
+
+Teaming and Bonding Network Interfaces
+-----------------------
+Teaming and Bonding interfaces allow dynamic network interface configuration to provide higher throughput and additional robustness to the network. Teamin* is being deprecated
+Bonding Network Interfaces
+There are several methods for configuring Bonding interfaces:
+    • sysfs
+Direct changes to the /sys pseudofilesystem. Changes are not saved.
+    • iproute2
+Supports bonding via the ip command; see man 8 ip-link for details. Changes are not saved.
+    • NetworkManager
+All NetworkManager user interfaces support bonding. Changes are saved. The NetworkManager configuration files can also be edited with your favorite text editor.
+For more details on the /sys interface to bonding, check the online documentation.
+
+Creating Bonding Network Interface with nmcli
+Creating a configuration for a bonding interface with nmcli involves a few steps. Minimal steps are:
+    1. Identify adapters: Use nmcli device status
+    2. Create bonding device: Use nmcli connection add
+    3. Attach interface to the bond: Create a connection from the adapter to the bond device using nmcli connection add
+    4. Set the bond adapter online: Issue an nmcli connection up command for the bond adapter
+    5. Reboot: Although the reboot is not absolutely required, it is strongly recommended. A reboot will clean up any configuration fragments left around
+For more information on nmcli, check the nmcli documentation.
+
+/etc/hosts
+-----------------------
+The /etc/hosts file holds a local database of hostnames and IP addresses. It contains a set of records (each taking one line) which map IP addresses with corresponding hostnames and aliases.
+Such static name resolution is primarily used for local, small, isolated networks. It is generally checked before DNS is attempted to resolve an address; however, this priority can be controlled by the /etc/nsswitch.conf file,
+The other host-related files in /etc are /etc/hosts.deny and /etc/hosts.allow. These are self-documenting and their purpose is obvious from their names. The allow file is searched first and the deny file is only searched if the query is not found there.
+
+DNS and Name Resolution
+-----------------------
+Name resolution is the act of translating hostnames to the IP addresses of their hosts.
+This can be done in either a static fashion using the /etc/hosts file, or dynamically using DNS servers.
+There are several command line tools that can be used to resolve the IP address of a hostname:
+$ [dig | host | nslookup] linuxfoundation.org
+    • dig: generates the most information and has many options
+    • host: more compact
+    • nslookup: older and not recommended; can have wrong answers, especially with DNSSEC.
+dig is the newest and the others are sometimes considered deprecated.
+
+Using Dig
+-----------------------
+The dig utility gives the most correct answer among shipped tools.
+    • Default output is often too verbose for simple tasks or scripting
+    • Can view entire resolution chain
+    • Can view and verify DNSSEC operation
+Some useful options:
+    • +trace Check the entire path, from the root servers (by default)
+    • -t [record type] specify the record (including A, TXT, CNAME, MX)
+Here is an example of using dig with the default address lookup behavior:
+$ dig linuxfoundation.org
+
+DNS
+-----------------------
+If name resolution cannot be done locally using the /etc/hosts file, then the system will query a DNS (Domain Name Server) server.
+DNS is dynamic and consists of a network of servers which a client uses to look up names. The service is distributed; any one DNS server has only information about its zone of authority; however, all of them together can cooperate to resolve any name.
+The machine's usage of DNS is configured in the /etc/resolv.conf file, which historically has looked like:
+search example.com aps.org
+nameserver 192.168.1.1
+nameserver 8.8.8.8
+which:
+    • Can specify particular domains to search.
+    • Defines a strict order of nameservers to query.
+    • May be manually configured or updated from a service such as DHCP (Dynamic Host Configuration Protocol).
+Most modern systems will have an /etc/resolv.conf file generated automatically, such as:
+# Generated by NetworkManager
+192.168.1.1
+
+Networking Problem Troubleshooting
+-----------------------
+The following items need to be checked when there are issues with networking:
+    • IP configuration
+Use ifconfig or ip to see if the interface is up, and if so, if it is configured
+    • Network Driver
+If the interface cannot be brought up, maybe the correct device driver for the network card(s) is not loaded. Check with lsmod if the network driver is loaded as a kernel module, or by examining relevant pseudofiles in /proc and /sys, such as /proc/interrupts or /sys/class/net.
+    • Connectivity
+Use ping to see if the network is visible, checking for response time and packet loss. traceroute can follow packets through the network, while mtr can do this in a continuous fashion. Use of these utilities can tell you if the problem is local or on the Internet.
+    • Default gateway and routing configuration
+Run route -n and see if the routing table make sense
+    • Hostname resolution
+Run dig or host on a URL and see if DNS is working properly.
+
+Network Diagnostics
+-----------------------
+A number of basic network utilities are in every system administrator's toolbox:
+    • ping
+Sends 64-byte test packets to designated network hosts and tries to report back on the time required to reach it (in milliseconds), any lost packets, and some other parameters. 
+    • traceroute
+Is used to display a network path to a destination. It shows the routers packets flow through to get to a host, as well as the time it takes for each hop. 
+    • mtr
+Combines the functionality of ping and traceroute and creates a continuously updated display, like top. 
+Example commands:
+$ ping -c 10 linuxfoundation.org
+$ traceroute linuxfoundation.org
+$ mtr linuxfoundation.org
+
+Firewalls
+======================
+Packet Filtering
+-----------------------
+Almost all firewalls are based on Packet Filtering.
+A firewall establishes a set of rules by which each packet may be:
+    • Accepted or rejected based on content, address, etc.
+    • Mangled in some way
+    • Redirected to another address
+    • Inspected for security reasons, etc.
+
+Early firewalls were based on packet filtering: the content of each network packet was inspected and was either dropped, rejected, or sent on.
+The next generation of firewalls were based on stateful filters, which also examine the connection state of the packet to see if it is a new connection
+The third generation of firewalls is called Application Layer Firewalls, and are aware of the kind of application and protocol the connection is using.
+
+Firewall Interfaces and Tools
+-----------------------
+Configuring your system's firewall can be done by:
+    • Using relatively low-level tools from the command line, combined with editing various configuration files in the /etc subdirectory tree: iptables, firewall-cmd, ufw, etc.
+    • Using robust graphical interfaces: system-config-firewall, firewall-config, gufw, yast, etc.
+
+firewalld and firewall-cmd
+firewalld is the Dynamic Firewall Manager. It utilizes network/firewall zones which have defined levels of trust for network interfaces or connections. It supports both IPv4 and IPv6 protocols.
+In addition, it separates runtime and permanent (persistent) changes to configuration, and also includes interfaces for services or applications to add firewall rules.
+Configuration files are kept in the /etc/firewalld and /usr/lib/firewalld directories; the files in /etc/firewalld override those in the other directory and are the ones a system administrator should work on.
+The command line tool is actually firewall-cmd which we will discuss.
+
+firewalld Service Status
+-----------------------
+firewalld is a service which needs to be running to use and configure the firewall, and is enabled/disabled, or started or stopped: 
+$ sudo systemctl [enable/disable] firewalld
+$ sudo systemctl [start/stop] firewalld
+You can show the current state in either of the following ways presented below.
+$ sudo systemctl status firewalld
+$ sudo firewall-cmd --state
+Note that if you have more than one network interface when using IPv4, you have to turn on ip forwarding. You can do this at runtime by running either:
+$ sudo sysctl net.ipv4.ip_forward=1
+$ echo 1 > /proc/sys/net/ipv4/ip_forward
+However, this is not persistent. To do that, you have to add the following line to the /etc/sysctl.conf file: net.ipv4.ip_forward=1
+and then reboot or type this command:
+$ sudo sysctl -p
+
+Zones
+-----------------------
+firewalld works with zones, each of which has a defined level of trust and a certain known behavior for incoming and outgoing packets. Each interface belongs to a particular zone (normally, it is NetworkManager which informs firewalld which zone is applicable), but this can be changed with firewall-cmd
+
+    • drop All incoming packets are dropped with no reply. Only outgoing connections are permitted.
+    • block All incoming network connections are rejected. The only permitted connections are those from within the system.
+    • public Do not trust any computers on the network; only certain consciously selected incoming connections are permitted.
+    • external Used when masquerading is being used, such as in routers. Trust levels are the same as in public.
+    • dmz (Demilitarized Zone) Used when access to some (but not all) services are to be allowed to the public. Only particular incoming connections are allowed.
+    • work Trust (but not completely) connected nodes to be not harmful. Only certain incoming connections are allowed.
+    • home You mostly trust the other network nodes, but still select which incoming connections are allowed.
+    • internal Similar to the work zone.
+    • trusted All network connections are allowed.
+
+Zone Management Examples
+-----------------------
+To see the options available for firewall-cmd, run this command:
+$ firewall-cmd --help
+Get the default zone (command and output below):
+$ sudo firewall-cmd --get-default-zone
+Obtain a list of zones currently being used (command and output below):
+$ sudo firewall-cmd --get-active-zones
+List all available zones (command and output below):
+$ sudo firewall-cmd --get-zones
+To change the default zone to trusted and then change it back (commands and outputs below):
+$ sudo firewall-cmd --set-default-zone=trusted
+$ sudo firewall-cmd --set-default-zone=public
+To assign an interface temporarily to a particular zone (command and output below):
+$ sudo firewall-cmd --zone=internal --change-interface=eno1
+To assign an interface to a particular zone permanently (command and output below):
+$ sudo firewall-cmd --permanent --zone=internal --change-interface=eno1
+which creates the file /etc/firewalld/zones/internal.xml.
+To ascertain the zone associated with a particular interface (command and output below):
+$ sudo firewall-cmd --get-zone-of-interface=eno1
+To get all details about a particular zone (command and output below):
+$ sudo firewall-cmd --zone=public --list-all
+
+Source Management
+-----------------------
+Any zone can be bound not just to a network interface, but also to particular network addresses.
+To assign a source to a zone (permanently), run this command:
+$ sudo firewall-cmd --permanent --zone=trusted --add-source=192.168.1.0/24
+This says anyone with an IP address of 192.168.1.x will be added to the trusted zone.
+Note that you can remove a previously assigned source from a zone by using the --remove-source option, or change the zone by using --change-source.
+You can list the sources bound to a zone with the following command:
+$ sudo firewall-cmd --permanent --zone=trusted --list-sources 192.168.1.0/24
+
+Service Management
+-----------------------
+So far, we have assigned particular interfaces and/or addresses to zones, but we haven't delineated what services and ports should be accessible within a zone.
+To see all the services available, use this command:
+$ sudo firewall-cmd --get-services
+or, to see those currently accessible in a particular zone, run:
+$ sudo firewall-cmd --list-services --zone=public
+To add a service to a zone, type:
+$ sudo firewall-cmd --permanent --zone=home --add-service=dhcp
+$ sudo firewall-cmd --reload (to make change effective)
+
+Port Management
+-----------------------
+Port management is very similar to service management (commands below):
+$ sudo firewall-cmd --zone=home --add-port=21/tcp
+$ sudo firewall-cmd --zone=home --list-ports
+where by looking at /etc/services we can ascertain that port 21 corresponds to ftp:
+$ grep " 21/tcp" /etc/services
+
+Port Redirection and NAT
+-----------------------
+During packet ingress, sometimes it is desirable to change the destination port. In the example below, the zone and port are specified.
+    • Inbound packet for port 80 needs to be re-directed to port 8080
+    • Specify the zone that is used for external connection with --zone=external
+$ sudo firewall-cmd --zone=external --add-forward-port=port=80:proto=tcp:toport=8080
+
+Network Address Translation (NAT)
+-----------------------
+Network Address Translation (NAT) is a method the firewall uses to change the packet source or destination address as it enters or exits the firewall. There are several types of NAT:
+    • DNAT (Destination Network Address Translation) 
+    • SNAT (Source Network Address Translation)
+    • Masquerade, a variation of SNAT
+
+DNAT (Destination Network Address Translation)
+-----------------------
+DNAT (Destination Network Address Translation) alters the end destination (the “to” IP address) and possibly the destination port, as the packet enters the system from the Internet.
+    • When a packet is sent, it will have the public IP address provided by DNS
+    • The public IP address will be that of the firewall
+    • Changing the destination of the packet is necessary to allow the packet to move through the firewall to the internal network to the desired service
+The DNAT firewall rule is normally placed in the pre-routing chain of the NAT table. This would be the Internet-facing adapter and the public address used by services like a web server.
+Since firewalls are typically pass-through devices (few local services), the packet is examined and the destination port examined to see if there is an applicable rule.
+
+SNAT and Masquerade
+-----------------------
+Source Network Address Translation (SNAT) changes the source (the "from") IP address on the packet as it leaves the system on the way to the Internet.
+    • Translation is required to protect the addresses used on internal networks from exposure to the Internet
+    • Most internal networks are private networks and not routable
+If the IP address on the outbound interface is provided by DHCP, the Masquerade option is used to implement SNAT. The masquerade option requires more compute resources than SNAT.
+If the outbound interface is static, SNAT can be used and the public IP address is specified.
+SNAT and masquerade are in the post-routing chain of the NAT table.
+
+System Init
+=========================
+init
+The /sbin/init program (usually just called init) is the first user-level process (or task) run on the system and continues to run until the system is shut down. Traditionally, it has been considered the parent of all user processes, although technically that is not true, as some processes are started directly by the kernel.
+init coordinates the later stages of the boot process, configures all aspects of the environment, and starts the processes needed for logging into the system. init also works closely with the kernel in cleaning up after processes when they terminate.
+Three most common implementations for system startup  include systemd, Upstart and SysVinit, but all major distributions have now moved to systemd.
+
+systemd Features
+-----------------------
+The systemd system and session manager for Linux is now dominant in most major distributions. Features include the following:
+    • Boots faster than previous init systems
+    • Provides aggressive parallelization capabilities
+    • Uses socket and D-Bus activation for starting services
+    • Replaces shell scripts with programs
+    • Offers on-demand starting of daemons
+    • Keeps track of processes using cgroups
+    • Maintains mount and automount points
+    • Implements an elaborate transactional dependency-based service control logic
+    • Provides detailed start and stop functionality, including similar abilities to cron
+Instead of bash scripts, systemd uses .service files.
+
+systemd Configuration File Locations
+-----------------------
+systemd allows for multiple locations for its unit files, allowing for processes running under a non-root user, and inheritance from system unit files. Here are some typical locations (but may vary by distribution):
+    • System unit files: /etc/systemd/system and /lib/systemd/system
+    • User unit files: /etc/systemd/user and ~/.config/systemd/user
+On most systems, /lib/systemd/ is a symlink to /usr/lib/systemd/.
+
+systemctl
+-----------------------
+systemctl is the main utility for managing services. Some systemctl commands can be run as non-root user, others require running as root or with sudo. Its basic syntax is:
+$ systemctl [options] command [name]
+Below you can see some example commands of how you can use systemctl.
+To show the status of everything that systemd controls:
+$ systemctl
+To show all available services:
+$ systemctl list-units -t service --all
+To show only active services:
+$ systemctl list-units -t service
+To start (activate) or stop (deactivate) one or more units:
+$ sudo systemctl start foo
+$ sudo systemctl start foo.service
+$ sudo systemctl start /path/to/foo.service
+$ sudo systemctl stop foo.service
+where a unit can be a service or a socket.
+In a similar fashion, you can see user units:
+$ systemctl list-units --user 'xdg*'
+
+
+Backup and Recovery
+=======================
+Some Backup Related Utilities
+-----------------------
+cpio and tar create and extract archives of files.
+The archives are often compressed with gzip, bzip2, or xz. The archive file may be written to disk, magnetic tape, or any other device which can hold files. Archives are very useful for transferring files from one filesystem or machine to another. 
+dd is a powerful utility often used to transfer raw data between media. It can be used to copy entire partitions or entire disks.
+rsync is a powerful utility that can synchronize directory subtrees or entire filesystems across a network, or between different filesystem locations on a local machine.
+dump and restore are ancient utilities which were designed specifically for backups. They read from the filesystem directly (which is more efficient). However, they must be restored only on the same filesystem type that they came from. There are newer alternatives.
+mt is used for querying and positioning tapes before performing backups and restores.
+
+Using TAR for backups
+-----------------------
+tar is easy to use:
+    • When creating a tar archive, for each directory given as an argument, all files and subdirectories will be included in the archive. When restoring, it reconstitutes directories as necessary.
+    • It even has a --newer option that lets you do incremental backups.
+    • The version of tar used in Linux can also handle backups that do not fit on one tape or whatever device you use.
+Create an archive using -c or just c:
+$ tar cvf  /dev/st0 /root
+$ tar -cvf /dev/st0 /root
+Create with multi-volume option, using -M:
+$ tar -cMf /dev/st0 /root
+You will be prompted to put the next tape when needed.
+Verify files with the compare option, using -d or --compare:
+$ tar --compare --verbose --file /dev/st0
+$ tar -dvf /dev/st0
+You can also specify a device or file with the -f or --file option.
+By default, tar will recursively include all subdirectories in the archive.
+Most tar options can be given in short form with one dash, or long form with two: -c is completely equivalent to --create. 
+
+Using tar for Restoring Files
+-----------------------
+The -x or --extract option extracts files from an archive, all by default. You can narrow the file extraction list by specifying only particular files. If a directory is specified, all included files and subdirectories are also extracted.
+The -p or --same-permissions options ensures files are restored with their original permissions.
+The -t or --list option lists, but does not extract, the files in the archive.
+Extract from an archive with -x or --extract using the following commands:
+$ tar --extract --same-permissions --verbose --file /dev/st0
+$ tar -xpvf /dev/st0
+$ tar  xpvf /dev/st0
+Specify only specific files to restore with this command:
+$ tar -xvf /dev/st0 somefile
+List the contents of a tar backup by running:
+$ tar --list --file /dev/st0
+$ tar -tf /dev/st0
+
+Incremental Backups with tar
+-----------------------
+You can do an incremental backup with tar using the -N (or the equivalent --newer), or the --after-date options. Either option requires specifying either a date or a qualified (reference) file name. See commands below:
+$ tar --create --newer '2011-12-1' -vzf backup1.tgz /var/tmp 
+$ tar --create --after-date '2011-12-1' -vzf backup1.tgz /var/tmp
+Either form creates a backup archive of all files in /var/tmp which were modified after December 1, 2011.
+
+Archive Compression Methods
+-----------------------
+    • gzip: Uses Lempel-Ziv Coding (LZ77) and produces .gz files.
+    • bzip2: Uses Burrows-Wheeler block sorting text compression algorithm and Huffman coding, and produces .bz2 files.
+    • xz: Produces .xz files and also supports legacy .lzma format.
+For example, The Linux Kernel Archives only uses xz format now for downloading Linux kernels.
+The compression utilities are very easily (and often) used in combination with the tar command:
+$ tar zcvf source.tar.gz source
+$ tar jcvf source.tar.bz2 source
+$ tar Jcvf source.tar.xz source
+for producing a compressed archive. Note that the first command has the exact same effect as doing:
+$ tar cvf source.tar source ; gzip -v source.tar
+but is more efficient because:
+    1. There is no intermediate file storage
+    2. Archiving and compression happen simultaneously in the pipeline
+For decompression, use the following commands:
+$ tar xzvf source.tar.gz
+$ tar xjvf source.tar.bz2
+$ tar xJvf source.tar.xz
+or even simpler:
+$ tar xvf source.tar.gz
+as modern versions of tar can sense the method of compression and take care of it automatically.
+
+dd
+-----------------------
+dd is a common UNIX-based program whose primary purpose is the low-level copying and conversion of raw data. It is used to copy a specified number of bytes or blocks, performing on-the-fly byte order conversions, as well as being able to convert data from one form to another. It can also read fixed amounts of data from special files like /dev/zero or /dev/random. The basic syntax is:
+$ dd if=input-file of=output-file options
+Below are some examples of using the dd utility.
+Create a file with the following command:
+$ dd if=/dev/zero of=outfile bs=1M count=10
+Back up an entire hard drive to another by running:
+$ dd if=/dev/sda of=/dev/sdb
+Create an image of a hard disk with:
+$ dd if=/dev/sda of=sdadisk.img
+Back up a partition with this command:
+$ dd if=/dev/sda1 of=partition1.img
+Back up a CD ROM by doing:
+$ dd if=/dev/cdrom of=tgsservice.iso bs=2048
+
+Using rsync for Backups
+-----------------------
+rsync (remote synchronize) is used to transfer files across a network (or between different locations on the same machine), as in:
+$ rsync [options] sourcefile destinationfile
+The source and destination can take the form of target:path, where target can be in the form of [user@]host. The user@ part is optional and used if the remote user is different from the local user. Thus, these are all possible rsync commands:
+$ rsync file.tar someone@backup.mydomain:/usr/local
+$ rsync -r --dry-run /usr/local /BACKUP/usr
+You have to be very careful with rsync about exact location specifications (especially if you use the --delete option), so it is highly recommended to use the --dry-run option first, and then repeat if the projected action looks correct.
+rsync is very clever; only the differences are copied over the network. This synchronizes the second directory with the first directory. You may often use the -r option, which causes rsync to recursively walk down the directory tree. Thus, a very useful way to back up a project directory might be similar to this command:
+$ rsync -r project-X archive-machine:archives/project-X
+
+Backup Programs
+-----------------------
+    •  Amanda (Advanced Maryland Automatic Network Disk Archiver) uses native utilities (including tar and dump), but is far more robust and controllable.
+    •  Bacula is designed for automatic backup on heterogeneous networks. It can be rather complicated to use and is recommended (by its authors) only to experienced administrators. 
+    • Clonezilla is a very robust disk cloning program, which can make images of disks and deploy them, either to restore a backup, or to be used for ghosting, to provide an image that can be used to install many machines. 
+
+
+Linux Security Modules
+============================
+Main LSM Choices
+The current LSM implementations are and can be stacked:
+    • SELinux
+    • AppArmor
+    • Smack
+    • Tomoyo
+    • Yama 
+
+SELinux Overview
+-----------------------
+SELinux was originally developed by the United States NSA (National Security Administration) and has been integral to RHEL for a very long time
+It works with three conceptual quantities:
+    1. Contexts: These are labels to files, processes, and ports. Examples of contexts are SELinux user, role and type.
+    2. Rules: They describe access control in terms of contexts, processes, files, ports, users, etc.
+    3. Policies: They are a set of rules that describe what system-wide access control decisions should be made by SELinux.
+A SELinux context is a name used by a rule to define how users, processes, files and ports interact with each other. As the default policy is to deny any access, rules are used to describe allowed actions on the system.
+Additional online documentation can be found in the SELinux User's and Administrator's Guide.
+
+
+SELinux Enforcement Modes
+-----------------------
+SELinux can be run under one of three modes. These modes are selected (and explained) in a file (usually /etc/selinux/config) whose location varies by distribution (it is often either at /etc/sysconfig/selinux or linked from there). And are:
+    • Enforcing (blocks)
+    • Permissive (warn)
+    • Disabled 
+The sestatus utility can display the current mode and policy.
+Use getenforce and setenforce to see or set current mode.
+
+getenforce and setenforce
+-----------------------
+To examine or set the current mode, you can use getenforce and setenforce :
+$ getenforce
+$ sudo setenforce Permissive
+setenforce can be used to switch between enforcing and permissive modes on the fly while the system is in operation. However, changing in or out of the disabled mode cannot be done this way. There are at least two different ways to disable SELinux:
+    • Configuration file: Edit the SELinux configuration file (usually /etc/selinux/config) and set SELINUX=disabled. This is the default method and should be used to permanently disable SELinux.
+    • Kernel parameter: Add selinux=0 to the kernel parameter list when rebooting.
+
+SELinux Policies
+-----------------------
+The same configuration file that sets the mode, usually /etc/sysconfig/selinux, also sets the SELinux policy. Multiple policies are allowed, but only one can be active at a time. Changing the policy may require a reboot of the system and a time-consuming re-labeling of filesystem contents. Each policy has files which must be installed under etc/selinux/[SELINUXTYPE].
+    • Targeted: The default policy in which SELinux is more restricted to targeted processes. User processes and init processes are not targeted, while network service processes are targeted. SELinux enforces memory restrictions for all processes, which reduces the vulnerability to buffer overflow attacks.
+    • Minimum: A modification of the targeted policy where only selected processes are protected.
+    • MLS: The Multi-Level Security policy is much more restrictive; all processes are placed in fine-grained security domains with particular policies.
+
+Context Utilities
+-----------------------
+As mentioned earlier, contexts are labels applied to files, directories, ports, and processes. Those labels are used to describe access rules. There are four SELinux contexts: User. Role. Type. Level
+We will focus on type, the most commonly utilized context. The label naming convention determines that type context labels should end with _t, as in kernel_t.
+Use the -Z option to see the context (commands below):
+$ ls -Z
+$ ps auZ
+Use the chcon command to change context (commands and outputs below):
+$ chcon -t etc_t somefile
+$ chcon --reference somefile someotherfile
+$ chcon -t etc_t somefile
+
+SELinux and Standard Commands
+-----------------------
+Many standard command line commands, such as ls and ps, were extended to support SELinux, and corresponding sections were added to their man pages explaining the details. Often the parameter Z is passed to standard command line tools, as in (commands and outputs below):
+$ ps axZ
+$ ls -Z /home/ /tmp/
+Other tools that were extended to support SELinux include cp, mv, and mkdir.
+
+Context Inheritance
+-----------------------
+Newly created files inherit the context from their parent directory, but when moving or copying files, it is the context of the source directory which may be preserved, which can cause problems.
+The classical example in which moving files creates a SELinux issue is moving files to the DocumentRoot directory of the httpd server. On SELinux-enabled systems, the web server can only access files with the correct context labels. Creating a file in the /tmp directory, and then moving it to the DocumentRoot directory, will make the file inaccessible to the httpd server until the SELinux context of the file is adjusted.
+
+restorecon
+-----------------------
+restorecon resets file contexts, based on parent directory settings. In the following example, restorecon resets the default label recursively for all files at the home directory (commands and outputs below):
+$ restorecon -Rv /home/jimih
+$ ls -Z
+
+semanage
+-----------------------
+Another issue is how to configure the default context for a newly created directory. semanage fcontext (provided by the policycoreutils-python package) can change and display the default context of files and directories. Note that semanage fcontext only changes the default settings; it does not apply them to existing objects. This requires calling restorecon afterwards. For example:
+[root@rhel7 /]# semanage fcontext -a -t httpd_sys_content_t /virtualHosts
+[root@rhel7 /]# restorecon -RFv /virtualHosts
+
+Using SELinux Booleans
+SELinux policy behavior can be configured at runtime without rewriting the policy. This is accomplished by configuring SELinux Booleans, which are policy parameters that can be enabled and disabled:
+    • getsebool - to see booleans. setsebool - to set booleans
+    • semanage boolean -l - to see persistent boolean settings.
+You can see what you need to do to list all booleans of the current policy, including the current status and a short description in the screenshot below.
+$ setsebool allow_ftpd_anon_write on
+$ getsebool allow_ftpd_anon_write
+$ semanage boolean -l | grep allow_ftpd_anon_write
+$ allow_ftpd_anon_write -> off (note not persistent)
+$ setsebool -P allow_ftpd_anon_write on
+$ semanage boolean -l | grep allow_ftpd_anon_write
+  allow_ftpd_anon_write         -> on  (Now persistent)
+
+Monitoring SELinux Access
+-----------------------
+SELinux comes with a set of tools that collect issues at run time, log these issues and propose solutions to prevent same issues from happening again. These utilities are provided by the setroubleshoot-server package. 
+    • After installing the setroubleshoot-server utility, restart the auditd service
+    • It stores raw messages in /var/log/audit/audit.log
+    • Moves messages to /var/log/messages
+    • You can use sealert to see detailed messages
+
+AppArmor
+-----------------------
+AppArmor is an LSM alternative to SELinux. It has been used by SUSE, Ubuntu and other distributions. AppArmor:
+    • Provides Mandatory Access Control (MAC)
+    • Allows administrators to associate a security profile to a program which restricts its capabilities
+    • Is considered easier (by some but not all) to use than SELinux
+    • Is considered filesystem-neutral (no security labels required)
+AppArmor supplements the traditional UNIX Discretionary Access Control (DAC) model by providing Mandatory Access Control (MAC).
+In addition to manually specifying profiles, AppArmor includes a learning mode, in which violations of the profile are logged, but not prevented.
+
+Checking Status
+-----------------------
+Distributions that come with AppArmor tend to enable it and load it by default. Note that the Linux kernel has to have it turned on as well.
+Assuming you have the AppArmor kernel module available, on a systemd-equipped system you can run this command:
+$ sudo systemctl [start|stop|restart|status] apparmor
+to change or inquire about the current state of operation, or do:
+$ sudo systemctl [enable|disable] apparmor
+to cause to be loaded or not loaded at boot.
+In order to see the current status, do (command and output below):
+$ sudo apparmor_status
+Profiles and processes are in either enforce or complain mode, directly analogous to SELinux's enforcing and permissive modes. 
+
+Modes and Profiles
+-----------------------
+Profiles restrict how executable programs, which have pathnames on your system, such as /usr/bin/evince, can be used. Processes can be run in either of the two modes:
+    • Enforce Mode: Applications are prevented from acting in ways which are restricted. Attempted violations are reported to the system logging files. This is the default mode. A profile can be set to this mode with aa-enforce.
+    • Complain Mode: Policies are not enforced, but attempted policy violations are reported. This is also called the learning mode. A profile can be set to this mode with aa-complain.
+Linux distributions come with pre-packaged profiles, typically installed either when a given package is installed, or with an AppArmor package, such as apparmor-profiles. These profiles are stored in /etc/apparmor.d.
+
+AppArmor Utilities
+-----------------------
+AppArmor has quite a few administrative utilities for monitoring and control. For example, on an openSUSE system (command and output below):
+$ rpm -qil apparmor-utils | grep bin 
+Note that many of these utilities can be invoked with either their short or long names; 
+Table: AppArmor Utilities
+PROGRAM	USE
+apparmor_status	Show status of all profiles and processes with profiles
+apparmor_notify	Show a summary for AppArmor log messages
+complain	Set a specified profile to complain mode
+enforce	Set a specified profile to enforce mode
+disable	Unload a specified profile from the current kernel and prevent from being loaded on system startup
+logprof	Scan log files, and, if AppArmor events that are not covered by existing profiles have been recorded, suggest how to take into account, and, if approved, modify and reload
+easyprof	Help set up a basic AppArmor profile for a progra
+
+
